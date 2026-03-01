@@ -5,7 +5,6 @@ import PremiumCatalog from "./pages/PremiumCatalog";
 import PremiumCarPage from "./pages/PremiumCarPage";
 
 const PremiumApp = () => {
-  console.log("PremiumApp rendered");
   return (
     <Routes>
       <Route element={<PremiumLayout />}>

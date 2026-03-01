@@ -16,8 +16,6 @@ const PremiumLayout = () => {
     restDelta: 0.001,
   });
 
-  console.log("PremiumLayout rendered", { pathname: location.pathname });
-
   return (
     <div className="relative min-h-screen overflow-x-hidden bg-[#06070d] text-zinc-100 [color-scheme:dark]">
       <div className="pointer-events-none fixed inset-0 z-0">
