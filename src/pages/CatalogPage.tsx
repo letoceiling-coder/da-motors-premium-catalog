@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useCarsStore } from '@/stores/carsStore';
 import { BrandChips } from '@/components/BrandChips';
 import { StatusFilter } from '@/components/StatusFilter';
@@ -10,8 +10,10 @@ import { Skeleton } from '@/components/ui/skeleton';
 const CatalogPage = () => {
   const [filterOpen, setFilterOpen] = useState(false);
   const [loading, setLoading] = useState(true);
-  const filteredCars = useCarsStore((s) => {
-    const { cars, filters } = s;
+  const cars = useCarsStore((s) => s.cars);
+  const filters = useCarsStore((s) => s.filters);
+
+  const filteredCars = useMemo(() => {
     return cars.filter((car) => {
       if (filters.brand && car.brand !== filters.brand) return false;
       if (filters.status && car.status !== filters.status) return false;
@@ -31,13 +33,12 @@ const CatalogPage = () => {
       if (filters.bodyType && car.bodyType !== filters.bodyType) return false;
       return true;
     });
-  });
+  }, [cars, filters]);
 
   useEffect(() => {
     const t = setTimeout(() => setLoading(false), 600);
     return () => clearTimeout(t);
   }, []);
-
   return (
     <div className="min-h-screen bg-background pb-20">
       <Header onOpenFilter={() => setFilterOpen(true)} />
