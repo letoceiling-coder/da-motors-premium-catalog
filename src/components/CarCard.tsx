@@ -26,10 +26,17 @@ export function CarCard({ car }: CarCardProps) {
       {/* Image */}
       <div className="relative aspect-[16/10] overflow-hidden bg-muted">
         <img
-          src={car.photos[0]}
+          src={car.photos[0] || '/placeholder.svg'}
           alt={`${car.brand} ${car.model}`}
           className="w-full h-full object-cover"
           loading="lazy"
+          onError={(e) => {
+            // Если изображение не загрузилось, используем placeholder
+            const target = e.target as HTMLImageElement;
+            if (target.src !== '/placeholder.svg') {
+              target.src = '/placeholder.svg';
+            }
+          }}
         />
         {/* Favorite */}
         <button

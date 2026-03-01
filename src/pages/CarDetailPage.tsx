@@ -65,9 +65,15 @@ const CarDetailPage = () => {
       <div className="relative">
         <div className="aspect-[16/10] overflow-hidden bg-muted" onClick={() => setFullscreen(true)}>
           <img
-            src={car.photos[currentPhoto]}
+            src={car.photos[currentPhoto] || '/placeholder.svg'}
             alt={`${car.brand} ${car.model}`}
             className="w-full h-full object-cover"
+            onError={(e) => {
+              const target = e.target as HTMLImageElement;
+              if (target.src !== '/placeholder.svg') {
+                target.src = '/placeholder.svg';
+              }
+            }}
           />
         </div>
 

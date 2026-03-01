@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { useCarsStore } from '@/stores/carsStore';
 import { brands, fuelTypeLabels, transmissionLabels, drivetrainLabels, bodyTypeLabels } from '@/data/cars';
 import { Input } from '@/components/ui/input';
@@ -26,6 +26,7 @@ export function FilterSheet({ open, onClose }: FilterSheetProps) {
       <SheetContent side="bottom" className="rounded-t-2xl max-h-[85vh] overflow-y-auto pb-8">
         <SheetHeader className="pb-4">
           <SheetTitle className="text-lg">Фильтры</SheetTitle>
+          <SheetDescription className="sr-only">Настройте параметры поиска автомобилей</SheetDescription>
         </SheetHeader>
 
         <div className="space-y-4">
@@ -155,15 +156,22 @@ function FilterSelect({ label, value, onValueChange, options }: {
   onValueChange: (v: string) => void;
   options: { value: string; label: string }[];
 }) {
+  const handleValueChange = (v: string) => {
+    // Convert "all" back to empty string for clearing filter
+    onValueChange(v === "all" ? "" : v);
+  };
+
+  const displayValue = value || "all";
+
   return (
     <div>
       <label className="text-xs text-muted-foreground font-medium">{label}</label>
-      <Select value={value} onValueChange={onValueChange}>
+      <Select value={displayValue} onValueChange={handleValueChange}>
         <SelectTrigger className="mt-1">
           <SelectValue placeholder="Любой" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="">Любой</SelectItem>
+          <SelectItem value="all">Любой</SelectItem>
           {options.map((o) => (
             <SelectItem key={o.value} value={o.value}>
               {o.label}
