@@ -10,7 +10,28 @@ import { Skeleton } from '@/components/ui/skeleton';
 const CatalogPage = () => {
   const [filterOpen, setFilterOpen] = useState(false);
   const [loading, setLoading] = useState(true);
-  const filteredCars = useCarsStore((s) => s.filteredCars());
+  const filteredCars = useCarsStore((s) => {
+    const { cars, filters } = s;
+    return cars.filter((car) => {
+      if (filters.brand && car.brand !== filters.brand) return false;
+      if (filters.status && car.status !== filters.status) return false;
+      if (filters.search) {
+        const q = filters.search.toLowerCase();
+        const searchable = `${car.brand} ${car.model} ${car.trim} ${car.year} ${car.vin} ${car.color}`.toLowerCase();
+        if (!searchable.includes(q)) return false;
+      }
+      if (filters.yearFrom && car.year < filters.yearFrom) return false;
+      if (filters.yearTo && car.year > filters.yearTo) return false;
+      if (filters.priceFrom && car.price < filters.priceFrom) return false;
+      if (filters.priceTo && car.price > filters.priceTo) return false;
+      if (filters.mileageMax && car.mileage > filters.mileageMax) return false;
+      if (filters.fuelType && car.fuelType !== filters.fuelType) return false;
+      if (filters.transmission && car.transmission !== filters.transmission) return false;
+      if (filters.drivetrain && car.drivetrain !== filters.drivetrain) return false;
+      if (filters.bodyType && car.bodyType !== filters.bodyType) return false;
+      return true;
+    });
+  });
 
   useEffect(() => {
     const t = setTimeout(() => setLoading(false), 600);
