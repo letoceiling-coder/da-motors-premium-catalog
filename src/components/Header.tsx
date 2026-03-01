@@ -8,7 +8,21 @@ interface HeaderProps {
 
 export function Header({ onOpenFilter }: HeaderProps) {
   const navigate = useNavigate();
-  const filterCount = useCarsStore((s) => s.activeFilterCount());
+  const filterCount = useCarsStore((s) => {
+    const { filters } = s;
+    let count = 0;
+    if (filters.yearFrom) count++;
+    if (filters.yearTo) count++;
+    if (filters.priceFrom) count++;
+    if (filters.priceTo) count++;
+    if (filters.mileageMax) count++;
+    if (filters.fuelType) count++;
+    if (filters.transmission) count++;
+    if (filters.drivetrain) count++;
+    if (filters.bodyType) count++;
+    if (filters.color) count++;
+    return count;
+  });
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-md border-b">
