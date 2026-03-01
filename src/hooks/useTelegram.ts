@@ -49,14 +49,22 @@ export function useTelegram() {
   useEffect(() => {
     tg?.ready();
     tg?.expand();
-  }, []);
+  }, [tg]);
 
   const haptic = (type: 'light' | 'medium' | 'heavy' = 'light') => {
-    try { tg?.HapticFeedback?.impactOccurred(type); } catch {}
+    try { 
+      tg?.HapticFeedback?.impactOccurred(type); 
+    } catch {
+      // Ignore haptic feedback errors
+    }
   };
 
   const selectionHaptic = () => {
-    try { tg?.HapticFeedback?.selectionChanged(); } catch {}
+    try { 
+      tg?.HapticFeedback?.selectionChanged(); 
+    } catch {
+      // Ignore haptic feedback errors
+    }
   };
 
   return {
