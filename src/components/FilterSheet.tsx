@@ -33,7 +33,7 @@ export function FilterSheet({ open, onClose }: FilterSheetProps) {
           {/* Brand */}
           <FilterSelect
             label="Марка"
-            value={filters.brand ?? ''}
+            value={filters.brand || ''}
             onValueChange={(v) => setFilter('brand', v || null)}
             options={brands.map((b) => ({ value: b, label: b }))}
           />
@@ -41,7 +41,7 @@ export function FilterSheet({ open, onClose }: FilterSheetProps) {
           {/* Fuel */}
           <FilterSelect
             label="Тип топлива"
-            value={filters.fuelType ?? ''}
+            value={filters.fuelType || ''}
             onValueChange={(v) => setFilter('fuelType', v || null)}
             options={Object.entries(fuelTypeLabels).map(([k, v]) => ({ value: k, label: v }))}
           />
@@ -49,7 +49,7 @@ export function FilterSheet({ open, onClose }: FilterSheetProps) {
           {/* Transmission */}
           <FilterSelect
             label="Коробка передач"
-            value={filters.transmission ?? ''}
+            value={filters.transmission || ''}
             onValueChange={(v) => setFilter('transmission', v || null)}
             options={Object.entries(transmissionLabels).map(([k, v]) => ({ value: k, label: v }))}
           />
@@ -57,7 +57,7 @@ export function FilterSheet({ open, onClose }: FilterSheetProps) {
           {/* Drivetrain */}
           <FilterSelect
             label="Привод"
-            value={filters.drivetrain ?? ''}
+            value={filters.drivetrain || ''}
             onValueChange={(v) => setFilter('drivetrain', v || null)}
             options={Object.entries(drivetrainLabels).map(([k, v]) => ({ value: k, label: v }))}
           />
@@ -65,7 +65,7 @@ export function FilterSheet({ open, onClose }: FilterSheetProps) {
           {/* Body Type */}
           <FilterSelect
             label="Тип кузова"
-            value={filters.bodyType ?? ''}
+            value={filters.bodyType || ''}
             onValueChange={(v) => setFilter('bodyType', v || null)}
             options={Object.entries(bodyTypeLabels).map(([k, v]) => ({ value: k, label: v }))}
           />
@@ -172,11 +172,13 @@ function FilterSelect({ label, value, onValueChange, options }: {
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="all">Любой</SelectItem>
-          {options.map((o) => (
-            <SelectItem key={o.value} value={o.value}>
-              {o.label}
-            </SelectItem>
-          ))}
+          {options
+            .filter((o) => o.value && o.value.trim() !== '') // Фильтруем пустые значения
+            .map((o) => (
+              <SelectItem key={o.value} value={o.value}>
+                {o.label}
+              </SelectItem>
+            ))}
         </SelectContent>
       </Select>
     </div>

@@ -225,6 +225,35 @@ function parseCarFromProduct(product) {
     const powerMatch = descText.match(/(\d+)\s*л\.с\./);
     const fuelMatch = descText.match(/(Бензин|Дизель|Гибрид|Электрический)/i);
     
+    // Парсим цвет из описания или названия
+    const colorMatch = descText.match(/(белый|черный|серый|синий|красный|зеленый|коричневый|желтый|серебристый|золотой)/i) ||
+                      name.match(/(белый|черный|серый|синий|красный|зеленый|коричневый|желтый|серебристый|золотой)/i);
+    const color = colorMatch ? colorMatch[1].charAt(0).toUpperCase() + colorMatch[1].slice(1) : 'Unknown';
+    
+    // Парсим пробег
+    const mileageMatch = descText.match(/(\d+[\s,.]?\d*)\s*км/i) || descText.match(/пробег[:\s]+(\d+)/i);
+    const mileage = mileageMatch ? parseInt(mileageMatch[1].replace(/\s/g, ''), 10) : 0;
+    
+    // Парсим тип коробки передач
+    let transmission = 'automatic';
+    if (descText.match(/механическая|механика|manual/i)) transmission = 'manual';
+    else if (descText.match(/робот|robot/i)) transmission = 'robot';
+    else if (descText.match(/автоматическая|автомат|automatic/i)) transmission = 'automatic';
+    
+    // Парсим привод
+    let drivetrain = 'awd';
+    if (descText.match(/передний|fwd|front/i)) drivetrain = 'fwd';
+    else if (descText.match(/задний|rwd|rear/i)) drivetrain = 'rwd';
+    else if (descText.match(/полный|awd|4wd|quattro|xdrive|4matic/i)) drivetrain = 'awd';
+    
+    // Парсим тип кузова
+    let bodyType = 'sedan';
+    if (name.match(/suv|внедорожник|x[1-7]|gle|glc|gls|q[3-8]|cayenne|macan/i)) bodyType = 'suv';
+    else if (name.match(/coupe|купе/i)) bodyType = 'coupe';
+    else if (name.match(/hatchback|хэтчбек/i)) bodyType = 'hatchback';
+    else if (name.match(/convertible|кабриолет/i)) bodyType = 'convertible';
+    else if (name.match(/wagon|универсал|estate|touring/i)) bodyType = 'wagon';
+    
     // Извлекаем изображения
     const images = extractImages(product);
     
@@ -235,6 +264,9 @@ function parseCarFromProduct(product) {
     if (statusLower.includes('заказ') || statusLower.includes('order')) status = 'on_order';
     else if (statusLower.includes('пути') || statusLower.includes('transit')) status = 'in_transit';
     
+    // Парсим VIN из данных продукта, если есть
+    const vin = product.vin || product['data-product-vin'] || generateVIN(brand, model, year);
+    
     return {
       id: `donor-api-${product.id || product.uid || Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
       brand,
@@ -242,18 +274,18 @@ function parseCarFromProduct(product) {
       trim: model + ' Base',
       year,
       price,
-      mileage: 0,
+      mileage,
       status,
-      vin: generateVIN(brand, model, year),
-      color: 'Unknown',
+      vin,
+      color,
       fuelType: fuelMatch ? (fuelMatch[1].toLowerCase().includes('дизель') ? 'diesel' : 
                              fuelMatch[1].toLowerCase().includes('гибрид') ? 'hybrid' : 
                              fuelMatch[1].toLowerCase().includes('электрический') ? 'electric' : 'petrol') : 'petrol',
       engineVolume: engineMatch ? parseFloat(engineMatch[1]) : 2.0,
       power: powerMatch ? parseInt(powerMatch[1], 10) : 200,
-      transmission: 'automatic',
-      drivetrain: 'awd',
-      bodyType: 'sedan',
+      transmission,
+      drivetrain,
+      bodyType,
       photos: images.length > 0 ? images : [],
       specs: {
         engine: {
@@ -262,8 +294,10 @@ function parseCarFromProduct(product) {
           'Мощность': powerMatch ? `${powerMatch[1]} л.с.` : '200 л.с.',
         },
         transmission: {
-          'Тип': 'Автоматическая',
-          'Привод': 'Полный',
+          'Тип': transmission === 'manual' ? 'Механическая' : 
+                 transmission === 'robot' ? 'Робот' : 'Автоматическая',
+          'Привод': drivetrain === 'fwd' ? 'Передний' : 
+                    drivetrain === 'rwd' ? 'Задний' : 'Полный',
         },
         suspension: {},
         safety: [],
