@@ -4,9 +4,13 @@ RewriteBase /
 # Pretty webhook route for Telegram
 RewriteRule ^telegram/webhook$ /api/telegram-webhook.php [L,QSA]
 
-# SPA fallback
+# Don't rewrite API requests - let them go to PHP files directly
+RewriteCond %{REQUEST_URI} ^/api/ [OR]
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule . - [L]
+
+# SPA fallback - only for non-API, non-file requests
 RewriteRule ^index\.html$ - [L]
-RewriteCond %{REQUEST_FILENAME} !-f
-RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule . /index.html [L]
 
