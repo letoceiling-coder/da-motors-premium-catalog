@@ -86,12 +86,57 @@ export function AdminBroadcastPage() {
 
   const hasErrors = Object.keys(errors).length > 0;
 
-  const onSubmit = (e: React.FormEvent) => {
+  const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (hasErrors) return;
-    setSubmitInfo(
-      `Шаблон: рассылка валидна и готова к отправке через Telegram Bot API (source=${mediaSource}, parse_mode=${parseMode}, disable_notification=${disableNotification}, protect_content=${protectContent}, disable_web_page_preview=${disableWebPagePreview}, recipients=${sendToAll ? "all" : selectedUsers.length}).`
-    );
+    
+    setSubmitInfo("Отправка рассылки...");
+    
+    try {
+      // Prepare media URL - for file uploads, we need to handle differently
+      let finalMediaUrl = mediaUrl;
+      if (mediaSource === "file" && mediaFile) {
+        // For now, file uploads need to be handled via URL
+        // In production, you'd upload to a server first and get URL
+        setSubmitInfo("Ошибка: загрузка файлов через URL пока не поддерживается. Используйте URL медиа.");
+        return;
+      }
+      
+      const response = await fetch("/api/broadcast.php", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type,
+          text,
+          mediaSource,
+          mediaUrl: finalMediaUrl,
+          parseMode,
+          disableNotification,
+          protectContent,
+          disableWebPagePreview,
+          sendToAll,
+          selectedUsers: sendToAll ? [] : selectedUsers,
+        }),
+      });
+      
+      const data = await response.json();
+      
+      if (data.ok) {
+        setSubmitInfo(
+          `Рассылка отправлена: ${data.sent} успешно, ${data.failed} ошибок из ${data.total} получателей.`
+        );
+        // Clear form on success
+        setText("");
+        setMediaUrl("");
+        setMediaFile(null);
+        setSelectedUsers([]);
+      } else {
+        setSubmitInfo(`Ошибка отправки: ${data.error || "Неизвестная ошибка"}`);
+      }
+    } catch (error) {
+      setSubmitInfo("Ошибка сети при отправке рассылки.");
+      console.error("Broadcast error:", error);
+    }
   };
 
   const toggleUser = (id: string) => {
