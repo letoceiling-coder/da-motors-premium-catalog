@@ -54,7 +54,15 @@ function run_catalog_parser(): array
         ];
     }
 
-    $cmd = "node " . escapeshellarg($scriptPath) . " 2>&1";
+    $nodeBin = resolve_node_binary();
+    if ($nodeBin === null) {
+        return [
+            "ok" => false,
+            "error" => "Node.js binary not found for parser execution",
+        ];
+    }
+
+    $cmd = escapeshellarg($nodeBin) . " " . escapeshellarg($scriptPath) . " 2>&1";
     $output = [];
     $exitCode = 0;
     exec($cmd, $output, $exitCode);
@@ -78,6 +86,33 @@ function run_catalog_parser(): array
     }
 
     return $decoded;
+}
+
+function resolve_node_binary(): ?string
+{
+    $candidates = [];
+
+    // Common binaries
+    $candidates[] = "/usr/bin/node";
+    $candidates[] = "/usr/local/bin/node";
+
+    // NVM (shared hosting typical)
+    $home = getenv("HOME");
+    if (is_string($home) && $home !== "") {
+        $nvmMatches = glob($home . "/.nvm/versions/node/*/bin/node");
+        if (is_array($nvmMatches)) {
+            usort($nvmMatches, static fn($a, $b) => strcmp($b, $a));
+            $candidates = array_merge($nvmMatches, $candidates);
+        }
+    }
+
+    foreach ($candidates as $bin) {
+        if (is_string($bin) && file_exists($bin) && is_executable($bin)) {
+            return $bin;
+        }
+    }
+
+    return null;
 }
 
 function telegram_api_request(string $token, string $method, array $payload): array
