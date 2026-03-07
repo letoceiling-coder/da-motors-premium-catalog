@@ -106,6 +106,13 @@ function resolve_node_binary(): ?string
         }
     }
 
+    // Fallback for environments where HOME is unavailable in PHP-FPM
+    $globalNvmMatches = glob("/home/*/.nvm/versions/node/*/bin/node");
+    if (is_array($globalNvmMatches)) {
+      usort($globalNvmMatches, static fn($a, $b) => strcmp($b, $a));
+      $candidates = array_merge($globalNvmMatches, $candidates);
+    }
+
     foreach ($candidates as $bin) {
         if (is_string($bin) && file_exists($bin) && is_executable($bin)) {
             return $bin;
