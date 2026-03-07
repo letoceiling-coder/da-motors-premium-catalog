@@ -11,10 +11,20 @@ if [ -d "public/data" ]; then
     echo "Backup created: $BACKUP_DIR"
 fi
 
-# Clean everything except data
+# Clean everything except data directory
 echo "Cleaning old files..."
+# Backup data first
+if [ -d "public/data" ]; then
+    echo "Backing up data directory..."
+    cp -r public/data /tmp/data_backup_$(date +%Y%m%d_%H%M%S) 2>/dev/null || true
+    BACKUP_DIR=$(ls -td /tmp/data_backup_* 2>/dev/null | head -1)
+    echo "Backup created: $BACKUP_DIR"
+fi
+
+# Remove everything except public/data
 find . -mindepth 1 -maxdepth 1 ! -name 'public' -exec rm -rf {} \; 2>/dev/null || true
 if [ -d "public" ]; then
+    # Remove everything in public except data
     find public -mindepth 1 -maxdepth 1 ! -name 'data' -exec rm -rf {} \; 2>/dev/null || true
 fi
 
