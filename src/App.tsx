@@ -15,6 +15,7 @@ const TradeInPage = lazy(() => import("./pages/TradeInPage"));
 const ProfilePage = lazy(() => import("./pages/ProfilePage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const PremiumApp = lazy(() => import("./premium/PremiumApp"));
+const AdminApp = lazy(() => import("./admin/AdminApp"));
 
 const queryClient = new QueryClient();
 
@@ -27,6 +28,7 @@ const App = () => (
         <BrowserRouter>
           <Suspense fallback={<div className="min-h-screen bg-background" />}>
             <Routes>
+              <Route path="/admin/*" element={<AdminApp />} />
               <Route path="/premium/*" element={<PremiumApp />} />
               <Route path="/*" element={<MainShell />}>
                 <Route index element={<CatalogPage />} />
