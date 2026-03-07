@@ -29,7 +29,14 @@ if ($chatId === "") {
 }
 
 // register/update bot user
+// CRITICAL: Never delete users automatically - preserve all history
 $users = read_json_file("bot-users.json", []);
+
+// Ensure users is always an array (prevent data loss)
+if (!is_array($users)) {
+    $users = [];
+}
+
 $matchedIndex = -1;
 foreach ($users as $i => $user) {
     if ((string)($user["chat_id"] ?? "") === $chatId) {

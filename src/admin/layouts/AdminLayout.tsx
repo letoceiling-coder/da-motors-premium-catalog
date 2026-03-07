@@ -1,17 +1,19 @@
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
-import { Bot, LayoutDashboard, LogOut, Megaphone, Shield, Users } from "lucide-react";
+import { Bot, LayoutDashboard, LogOut, Megaphone, Shield, Users, FileText } from "lucide-react";
 import { useAdminAuth } from "@/admin/auth";
 
 const navItems = [
   { to: "/admin/dashboard", label: "Панель управления", icon: LayoutDashboard },
   { to: "/admin/bot", label: "Бот", icon: Bot },
   { to: "/admin/broadcast", label: "Рассылка", icon: Megaphone },
+  { to: "/admin/applications", label: "Заявки", icon: FileText },
   { to: "/admin/users", label: "Пользователи", icon: Users },
 ];
 
 function pageTitle(pathname: string) {
   if (pathname.startsWith("/admin/bot")) return "Настройка Telegram-бота";
   if (pathname.startsWith("/admin/broadcast")) return "Рассылка";
+  if (pathname.startsWith("/admin/applications")) return "Заявки";
   if (pathname.startsWith("/admin/users")) return "Пользователи";
   return "Панель управления";
 }

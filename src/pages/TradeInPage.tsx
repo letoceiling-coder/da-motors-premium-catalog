@@ -18,7 +18,7 @@ const TradeInPage = () => {
 
   const update = (key: string, value: string) => setForm((f) => ({ ...f, [key]: value }));
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const app: TradeInApplication = {
       id: Date.now().toString(),
       brand: form.brand,
@@ -31,6 +31,27 @@ const TradeInPage = () => {
       createdAt: new Date().toISOString(),
     };
     addTradeIn(app);
+    
+    // Send to server API
+    try {
+      await fetch("/api/applications.php", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "create",
+          type: "trade_in",
+          name: form.phone, // Use phone as name if name not provided
+          phone: form.phone,
+          email: "",
+          message: `Trade-In: ${form.brand} ${form.model} ${form.year}, пробег: ${form.mileage} км${form.vin ? `, VIN: ${form.vin}` : ''}${form.comment ? `\nКомментарий: ${form.comment}` : ''}`,
+          car_brand: form.brand,
+          car_model: form.model,
+        }),
+      });
+    } catch (err) {
+      console.error("Failed to submit trade-in application:", err);
+    }
+    
     haptic('medium');
     setSubmitted(true);
   };

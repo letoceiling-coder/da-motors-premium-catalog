@@ -5,6 +5,7 @@ import { AdminLoginPage } from "@/admin/pages/AdminLoginPage";
 import { AdminDashboardPage } from "@/admin/pages/AdminDashboardPage";
 import { AdminBotPage } from "@/admin/pages/AdminBotPage";
 import { AdminBroadcastPage } from "@/admin/pages/AdminBroadcastPage";
+import { AdminApplicationsPage } from "@/admin/pages/AdminApplicationsPage";
 import { AdminUsersPage } from "@/admin/pages/AdminUsersPage";
 
 function RequireAdminAuth() {
@@ -31,6 +32,7 @@ export default function AdminApp() {
             <Route path="dashboard" element={<AdminDashboardPage />} />
             <Route path="bot" element={<AdminBotPage />} />
             <Route path="broadcast" element={<AdminBroadcastPage />} />
+            <Route path="applications" element={<AdminApplicationsPage />} />
             <Route path="users" element={<AdminUsersPage />} />
           </Route>
         </Route>

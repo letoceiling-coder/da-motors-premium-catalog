@@ -4,13 +4,23 @@ declare(strict_types=1);
 
 require_once __DIR__ . "/_common.php";
 
+// CRITICAL: Never delete users automatically - preserve all history
 $users = read_json_file("bot-users.json", []);
 
+// Ensure users is always an array (prevent data loss)
+if (!is_array($users)) {
+    $users = [];
+}
+
 if ($_SERVER["REQUEST_METHOD"] === "GET") {
-    usort($users, static function ($a, $b) {
+    // Filter out deleted users only if explicitly requested, but keep them in storage
+    $activeUsers = array_filter($users, static function ($user) {
+        return !isset($user["deleted_at"]);
+    });
+    usort($activeUsers, static function ($a, $b) {
         return strcmp((string)($b["last_seen_at"] ?? ""), (string)($a["last_seen_at"] ?? ""));
     });
-    json_response(["ok" => true, "users" => $users]);
+    json_response(["ok" => true, "users" => array_values($activeUsers)]);
 }
 
 if ($_SERVER["REQUEST_METHOD"] !== "POST") {

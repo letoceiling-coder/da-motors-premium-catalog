@@ -44,8 +44,10 @@ const CarDetailPage = () => {
   const prevPhoto = () => setCurrentPhoto((p) => (p - 1 + car.photos.length) % car.photos.length);
   const nextPhoto = () => setCurrentPhoto((p) => (p + 1) % car.photos.length);
 
-  const handleSubmitContact = () => {
+  const handleSubmitContact = async () => {
     if (!contactForm.name || !contactForm.phone) return;
+    
+    // Save to local store (for history)
     const req: ContactRequest = {
       id: Date.now().toString(),
       carId: car.id,
@@ -55,6 +57,28 @@ const CarDetailPage = () => {
       createdAt: new Date().toISOString(),
     };
     addContactRequest(req);
+    
+    // Send to server API
+    try {
+      await fetch("/api/applications.php", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "create",
+          type: "contact",
+          name: contactForm.name,
+          phone: contactForm.phone,
+          email: "",
+          message: contactForm.message,
+          car_id: car.id,
+          car_brand: car.brand,
+          car_model: car.model,
+        }),
+      });
+    } catch (err) {
+      console.error("Failed to submit application:", err);
+    }
+    
     setContactOpen(false);
     setContactForm({ name: '', phone: '', message: '' });
   };
