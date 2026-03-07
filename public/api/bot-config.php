@@ -40,10 +40,20 @@ if (!write_json_file("bot-config.json", $config)) {
 }
 
 $setWebhookResult = null;
+$setDescriptionResult = null;
+$setShortDescriptionResult = null;
 if ($token !== "") {
     $setWebhookResult = telegram_api_request($token, "setWebhook", [
         "url" => $config["webhookUrl"],
         "allowed_updates" => ["message"],
+    ]);
+
+    $setDescriptionResult = telegram_api_request($token, "setMyDescription", [
+        "description" => (string)($config["botDescription"] ?? ""),
+    ]);
+
+    $setShortDescriptionResult = telegram_api_request($token, "setMyShortDescription", [
+        "short_description" => (string)($config["botShortDescription"] ?? ""),
     ]);
 }
 
@@ -51,5 +61,7 @@ json_response([
     "ok" => true,
     "config" => $config,
     "webhook" => $setWebhookResult,
+    "description" => $setDescriptionResult,
+    "short_description" => $setShortDescriptionResult,
 ]);
 
