@@ -3,11 +3,14 @@ import { useEffect, useMemo, useState } from "react";
 type MessageType = "text" | "photo" | "video";
 type MediaSource = "file" | "url";
 
-const MOCK_RECIPIENTS = [
-  { id: "u-1", name: "John Wick", username: "@johnwick" },
-  { id: "u-2", name: "Alex Mercer", username: "@alexm" },
-  { id: "u-3", name: "Roman Ivanov", username: "@roman" },
-];
+interface BotUser {
+  chat_id: string;
+  username?: string;
+  first_name?: string;
+  last_name?: string;
+  is_admin?: boolean;
+  last_seen_at?: string;
+}
 
 function isUrl(value: string) {
   try {
@@ -32,6 +35,9 @@ export function AdminBroadcastPage() {
   const [sendToAll, setSendToAll] = useState(true);
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
   const [submitInfo, setSubmitInfo] = useState("");
+  const [users, setUsers] = useState<BotUser[]>([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [usersError, setUsersError] = useState("");
 
   const errors = useMemo(() => {
     const next: Record<string, string> = {};
@@ -84,13 +90,33 @@ export function AdminBroadcastPage() {
     e.preventDefault();
     if (hasErrors) return;
     setSubmitInfo(
-      `Шаблон: рассылка валидна и готова к отправке через Telegram Bot API (source=${mediaSource}, parse_mode=${parseMode}, disable_notification=${disableNotification}, protect_content=${protectContent}, disable_web_page_preview=${disableWebPagePreview}).`
+      `Шаблон: рассылка валидна и готова к отправке через Telegram Bot API (source=${mediaSource}, parse_mode=${parseMode}, disable_notification=${disableNotification}, protect_content=${protectContent}, disable_web_page_preview=${disableWebPagePreview}, recipients=${sendToAll ? "all" : selectedUsers.length}).`
     );
   };
 
   const toggleUser = (id: string) => {
     setSelectedUsers((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
     setSubmitInfo("");
+  };
+
+  const loadUsers = async () => {
+    setLoadingUsers(true);
+    setUsersError("");
+    try {
+      const response = await fetch("/api/bot-users.php", { cache: "no-store" });
+      const payload = await response.json();
+      if (!response.ok || !payload?.ok) {
+        setUsersError(payload?.error || "Не удалось загрузить пользователей бота");
+        setUsers([]);
+        return;
+      }
+      setUsers(Array.isArray(payload.users) ? payload.users : []);
+    } catch {
+      setUsersError("Ошибка сети при загрузке пользователей бота");
+      setUsers([]);
+    } finally {
+      setLoadingUsers(false);
+    }
   };
 
   useEffect(() => {
@@ -109,6 +135,10 @@ export function AdminBroadcastPage() {
     setMediaUrl("");
     setMediaSource("file");
   }, [type]);
+
+  useEffect(() => {
+    void loadUsers();
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -308,7 +338,7 @@ export function AdminBroadcastPage() {
                   setSubmitInfo("");
                 }}
               />
-              Всем пользователям ({MOCK_RECIPIENTS.length})
+              Всем пользователям ({users.length})
             </label>
             <label className="flex items-center gap-2 text-sm text-gray-700">
               <input
@@ -324,16 +354,35 @@ export function AdminBroadcastPage() {
 
             {!sendToAll && (
               <div className="max-h-52 space-y-2 overflow-y-auto rounded-lg border border-gray-200 p-3">
-                {MOCK_RECIPIENTS.map((user) => (
-                  <label key={user.id} className="flex items-center gap-2 rounded px-2 py-1.5 hover:bg-gray-50">
-                    <input type="checkbox" checked={selectedUsers.includes(user.id)} onChange={() => toggleUser(user.id)} />
+                {users.map((user) => {
+                  const name = [user.first_name, user.last_name].filter(Boolean).join(" ") || user.username || user.chat_id;
+                  return (
+                  <label key={user.chat_id} className="flex items-center gap-2 rounded px-2 py-1.5 hover:bg-gray-50">
+                    <input
+                      type="checkbox"
+                      checked={selectedUsers.includes(user.chat_id)}
+                      onChange={() => toggleUser(user.chat_id)}
+                    />
                     <span className="text-sm text-gray-800">
-                      {user.name} <span className="text-gray-500">{user.username}</span>
+                      {name}{" "}
+                      {user.username ? <span className="text-gray-500">@{user.username}</span> : null}
                     </span>
                   </label>
-                ))}
+                )})}
+                {users.length === 0 ? <p className="text-sm text-gray-500">Нет пользователей бота. Пользователь появляется после команды /start.</p> : null}
               </div>
             )}
+
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={loadUsers}
+                className="rounded-md border border-gray-300 px-3 py-1 text-xs text-gray-700 hover:bg-gray-100"
+              >
+                {loadingUsers ? "Обновление..." : "Обновить список"}
+              </button>
+              {usersError ? <span className="text-xs text-red-600">{usersError}</span> : null}
+            </div>
 
             {errors.recipients ? <p className="text-xs text-red-600">{errors.recipients}</p> : null}
           </div>
