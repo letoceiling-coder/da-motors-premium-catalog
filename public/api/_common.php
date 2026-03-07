@@ -4,8 +4,17 @@ declare(strict_types=1);
 
 header("Content-Type: application/json; charset=utf-8");
 
+// Include protected storage system
+require_once __DIR__ . "/_storage.php";
+
+// Legacy storage_path for backward compatibility (now uses protected storage)
 function storage_path(string $relative): string
 {
+    // For JSON files (like cars.json, logs), use protected storage
+    if (strpos($relative, '.json') !== false) {
+        return get_json_storage_path($relative);
+    }
+    // Fallback to old location for migration period
     $base = dirname(__DIR__) . DIRECTORY_SEPARATOR . "data";
     if (!is_dir($base)) {
         @mkdir($base, 0775, true);
@@ -15,26 +24,14 @@ function storage_path(string $relative): string
 
 function read_json_file(string $relative, $default = [])
 {
-    $path = storage_path($relative);
-    if (!file_exists($path)) {
-        return $default;
-    }
-    $raw = file_get_contents($path);
-    if ($raw === false || $raw === "") {
-        return $default;
-    }
-    $decoded = json_decode($raw, true);
-    return is_array($decoded) ? $decoded : $default;
+    // Use protected storage for JSON files
+    return read_json_storage($relative, $default);
 }
 
 function write_json_file(string $relative, $payload): bool
 {
-    $path = storage_path($relative);
-    $encoded = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT);
-    if ($encoded === false) {
-        return false;
-    }
-    return file_put_contents($path, $encoded) !== false;
+    // Use protected storage for JSON files
+    return write_json_storage($relative, $payload);
 }
 
 function json_response(array $payload, int $status = 200): void

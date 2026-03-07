@@ -4,15 +4,26 @@ declare(strict_types=1);
 
 require_once __DIR__ . "/_common.php";
 
-$applications = read_json_file("applications.json", []);
+// Use database (primary) with JSON fallback for migration
+$applications = db_get_applications();
+if (empty($applications)) {
+    // Fallback to JSON during migration
+    $jsonApps = read_json_file("applications.json", []);
+    if (is_array($jsonApps) && !empty($jsonApps)) {
+        $applications = $jsonApps;
+    }
+}
 
 if ($_SERVER["REQUEST_METHOD"] === "GET") {
-    // Sort by created_at descending (newest first)
-    usort($applications, static function ($a, $b) {
-        $timeA = strtotime($a["created_at"] ?? "1970-01-01");
-        $timeB = strtotime($b["created_at"] ?? "1970-01-01");
-        return $timeB <=> $timeA;
-    });
+    // Applications from DB are already sorted and filtered
+    // For JSON fallback, sort manually
+    if (!empty($applications) && isset($applications[0]['created_at'])) {
+        usort($applications, static function ($a, $b) {
+            $timeA = strtotime($a["created_at"] ?? "1970-01-01");
+            $timeB = strtotime($b["created_at"] ?? "1970-01-01");
+            return $timeB <=> $timeA;
+        });
+    }
     json_response(["ok" => true, "applications" => $applications]);
 }
 
@@ -41,9 +52,9 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             "updated_at" => date(DATE_ATOM),
         ];
 
-        $applications[] = $application;
-        if (!write_json_file("applications.json", $applications)) {
-            json_response(["ok" => false, "error" => "Failed to save application"], 500);
+        // Save to database (primary storage)
+        if (!db_save_application($application)) {
+            json_response(["ok" => false, "error" => "Failed to save application to database"], 500);
         }
 
         // Notify bot admins about new application
@@ -60,26 +71,28 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             json_response(["ok" => false, "error" => "id and status are required"], 400);
         }
 
-        $found = false;
-        foreach ($applications as &$app) {
-            if ((string)($app["id"] ?? "") === $id) {
-                $app["status"] = $status;
-                $app["updated_at"] = date(DATE_ATOM);
-                $found = true;
-                break;
+        // Update in database
+        $db = get_storage_db();
+        if (!$db) {
+            json_response(["ok" => false, "error" => "Database unavailable"], 500);
+        }
+        
+        try {
+            $stmt = $db->prepare("UPDATE applications SET status = ?, updated_at = datetime('now') WHERE app_id = ? AND deleted_at IS NULL");
+            $stmt->execute([$status, $id]);
+            
+            if ($stmt->rowCount() === 0) {
+                json_response(["ok" => false, "error" => "Application not found"], 404);
             }
+            
+            $stmt = $db->prepare("SELECT * FROM applications WHERE app_id = ?");
+            $stmt->execute([$id]);
+            $app = $stmt->fetch();
+            
+            json_response(["ok" => true, "application" => $app]);
+        } catch (PDOException $e) {
+            json_response(["ok" => false, "error" => "Database error: " . $e->getMessage()], 500);
         }
-        unset($app);
-
-        if (!$found) {
-            json_response(["ok" => false, "error" => "Application not found"], 404);
-        }
-
-        if (!write_json_file("applications.json", $applications)) {
-            json_response(["ok" => false, "error" => "Failed to update application"], 500);
-        }
-
-        json_response(["ok" => true, "application" => $app ?? null]);
     }
 
     if ($action === "delete") {
@@ -89,28 +102,24 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             json_response(["ok" => false, "error" => "id is required"], 400);
         }
 
-        // Mark as deleted instead of removing (preserve history)
-        $found = false;
-        foreach ($applications as &$app) {
-            if ((string)($app["id"] ?? "") === $id) {
-                $app["deleted_at"] = date(DATE_ATOM);
-                $app["status"] = "deleted";
-                $app["updated_at"] = date(DATE_ATOM);
-                $found = true;
-                break;
+        // Mark as deleted in database (preserve history)
+        $db = get_storage_db();
+        if (!$db) {
+            json_response(["ok" => false, "error" => "Database unavailable"], 500);
+        }
+        
+        try {
+            $stmt = $db->prepare("UPDATE applications SET deleted_at = datetime('now'), status = 'deleted', updated_at = datetime('now') WHERE app_id = ? AND deleted_at IS NULL");
+            $stmt->execute([$id]);
+            
+            if ($stmt->rowCount() === 0) {
+                json_response(["ok" => false, "error" => "Application not found"], 404);
             }
+            
+            json_response(["ok" => true, "message" => "Application marked as deleted"]);
+        } catch (PDOException $e) {
+            json_response(["ok" => false, "error" => "Database error: " . $e->getMessage()], 500);
         }
-        unset($app);
-
-        if (!$found) {
-            json_response(["ok" => false, "error" => "Application not found"], 404);
-        }
-
-        if (!write_json_file("applications.json", $applications)) {
-            json_response(["ok" => false, "error" => "Failed to delete application"], 500);
-        }
-
-        json_response(["ok" => true, "message" => "Application marked as deleted"]);
     }
 
     json_response(["ok" => false, "error" => "Unknown action"], 400);
@@ -120,24 +129,22 @@ json_response(["ok" => false, "error" => "Method not allowed"], 405);
 
 function notify_bot_admins_new_application(array $application): void
 {
-    $config = read_json_file("bot-config.json", []);
+    // Get config from database
+    $dbConfig = db_get_bot_config();
+    $jsonConfig = read_json_file("bot-config.json", []);
+    $config = array_merge($dbConfig, $jsonConfig);
+    
     $token = trim((string)($config["botToken"] ?? ""));
     if ($token === "") {
         return; // Bot not configured
     }
 
-    $users = read_json_file("bot-users.json", []);
-    $admins = read_json_file("bot-admins.json", []);
+    // Get admins from database
+    $admins = db_get_bot_admins();
     
-    if (!is_array($admins)) {
-        $admins = [];
-    }
-
     $adminChatIds = [];
-    foreach ($users as $user) {
-        $chatId = (string)($user["chat_id"] ?? "");
-        $isAdmin = (bool)($user["is_admin"] ?? false) || in_array($chatId, $admins, true);
-        if ($isAdmin && $chatId !== "") {
+    foreach ($admins as $chatId) {
+        if ($chatId !== "") {
             $adminChatIds[] = $chatId;
         }
     }

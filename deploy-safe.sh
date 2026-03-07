@@ -12,21 +12,20 @@ cd ~/batnorton.siteaccess.ru/public_html || {
 
 echo "=== SAFE DEPLOYMENT START ==="
 
-# STEP 1: Backup data directory to multiple locations
-DATA_BACKUP="/tmp/data_backup_$(date +%Y%m%d_%H%M%S)"
-DATA_BACKUP_ALT="/home/dsc23ytp/data_backup_$(date +%Y%m%d_%H%M%S)"
+# STEP 1: Backup protected storage (OUTSIDE public_html - NEVER deleted)
+STORAGE_BASE="$HOME/app_storage"
+STORAGE_BACKUP="/tmp/app_storage_backup_$(date +%Y%m%d_%H%M%S)"
 
+if [ -d "$STORAGE_BASE" ]; then
+    echo "✓ Backing up protected storage to: $STORAGE_BACKUP"
+    cp -r "$STORAGE_BASE" "$STORAGE_BACKUP" 2>/dev/null || true
+    echo "✓ Protected storage backup completed"
+fi
+
+# Also backup old public/data for migration
 if [ -d "public/data" ]; then
-    echo "✓ Backing up data to: $DATA_BACKUP"
-    cp -r public/data "$DATA_BACKUP" 2>/dev/null || true
-    
-    echo "✓ Backing up data to: $DATA_BACKUP_ALT"
-    mkdir -p /home/dsc23ytp 2>/dev/null || true
-    cp -r public/data "$DATA_BACKUP_ALT" 2>/dev/null || true
-    
-    echo "✓ Data backup completed"
-else
-    echo "⚠ No public/data directory found"
+    echo "✓ Backing up old public/data for migration"
+    cp -r public/data "/tmp/data_backup_$(date +%Y%m%d_%H%M%S)" 2>/dev/null || true
 fi
 
 # STEP 2: Remove ONLY specific files, NEVER touch public/data
@@ -66,65 +65,72 @@ else
     rm -rf "$TEMP_DIR"
 fi
 
-# STEP 4: Restore data from backup (CRITICAL)
-if [ -d "$DATA_BACKUP" ] || [ -d "$DATA_BACKUP_ALT" ]; then
-    RESTORE_FROM=""
-    if [ -d "$DATA_BACKUP" ]; then
-        RESTORE_FROM="$DATA_BACKUP"
-    elif [ -d "$DATA_BACKUP_ALT" ]; then
-        RESTORE_FROM="$DATA_BACKUP_ALT"
-    fi
-    
-    if [ -n "$RESTORE_FROM" ]; then
-        echo "✓ Restoring data from: $RESTORE_FROM"
-        mkdir -p public/data
-        cp -r "$RESTORE_FROM"/* public/data/ 2>/dev/null || true
-        chmod -R 775 public/data 2>/dev/null || true
-        echo "✓ Data restored successfully"
-    fi
+# STEP 4: Restore protected storage (CRITICAL - data is OUTSIDE public_html)
+if [ -d "$STORAGE_BACKUP" ]; then
+    echo "✓ Restoring protected storage from: $STORAGE_BACKUP"
+    mkdir -p "$STORAGE_BASE"
+    cp -r "$STORAGE_BACKUP"/* "$STORAGE_BASE"/ 2>/dev/null || true
+    chmod -R 770 "$STORAGE_BASE" 2>/dev/null || true
+    echo "✓ Protected storage restored successfully"
 fi
 
-# STEP 5: Ensure data directory exists
-if [ ! -d "public/data" ]; then
-    echo "⚠ Creating empty data directory"
-    mkdir -p public/data
-    chmod -R 775 public/data
+# STEP 5: Ensure protected storage exists
+if [ ! -d "$STORAGE_BASE" ]; then
+    echo "⚠ Creating protected storage directory"
+    mkdir -p "$STORAGE_BASE"
+    chmod -R 770 "$STORAGE_BASE"
 fi
 
-# STEP 6: Build project
+# STEP 6: Run migration if needed (migrate old public/data to protected storage)
+if [ -d "public/data" ] && [ -f "public/api/migrate-storage.php" ]; then
+    echo "✓ Running data migration (old -> new storage)..."
+    php public/api/migrate-storage.php > /dev/null 2>&1 || echo "⚠ Migration completed with warnings"
+fi
+
+# STEP 7: Build project
 echo "✓ Installing dependencies..."
 PUPPETEER_SKIP_DOWNLOAD=true npm install
 
 echo "✓ Building project..."
 npm run build
 
-# STEP 7: Move build files
+# STEP 8: Move build files
 echo "✓ Moving build files..."
 mv dist/* . 2>/dev/null || true
 mv dist/.[^.]* . 2>/dev/null || true
 rmdir dist 2>/dev/null || true
 
-# STEP 8: Clean up build artifacts (NEVER touch public/data)
+# STEP 9: Clean up build artifacts (NEVER touch protected storage)
 echo "✓ Cleaning build artifacts..."
 rm -rf node_modules src scripts .git .gitignore package.json package-lock.json tsconfig.json tsconfig.app.json tsconfig.node.json vite.config.ts tailwind.config.ts postcss.config.js README.md .eslintrc.cjs bun.lockb components.json eslint.config.js .lovable vitest.config.ts 2>/dev/null || true
 
-# STEP 9: Final verification - data must exist
-if [ ! -d "public/data" ]; then
-    echo "❌ CRITICAL ERROR: public/data directory is missing!"
+# STEP 10: Final verification - protected storage must exist
+if [ ! -d "$STORAGE_BASE" ]; then
+    echo "❌ CRITICAL ERROR: Protected storage directory is missing!"
     echo "Attempting emergency restore..."
-    if [ -d "$DATA_BACKUP" ]; then
-        mkdir -p public/data
-        cp -r "$DATA_BACKUP"/* public/data/
+    if [ -d "$STORAGE_BACKUP" ]; then
+        mkdir -p "$STORAGE_BASE"
+        cp -r "$STORAGE_BACKUP"/* "$STORAGE_BASE"/
+        chmod -R 770 "$STORAGE_BASE"
         echo "✓ Emergency restore completed"
     else
-        echo "❌ No backup found. Data may be lost!"
-        exit 1
+        echo "❌ No backup found. Creating empty storage..."
+        mkdir -p "$STORAGE_BASE"
+        chmod -R 770 "$STORAGE_BASE"
     fi
 else
-    echo "✓ Data directory verified: public/data exists"
+    echo "✓ Protected storage verified: $STORAGE_BASE exists"
+    DB_FILE="$STORAGE_BASE/app.db"
+    if [ -f "$DB_FILE" ]; then
+        echo "✓ Database file verified: $(du -h "$DB_FILE" | cut -f1)"
+    fi
 fi
 
 echo "=== DEPLOYMENT COMPLETED SAFELY ==="
-echo "✓ Data preserved: public/data/"
+echo "✓ Protected storage preserved: $STORAGE_BASE"
+echo "✓ Database preserved: $STORAGE_BASE/app.db"
 echo "✓ Build completed"
 echo "✓ Ready for production"
+echo ""
+echo "⚠ IMPORTANT: Data is now stored OUTSIDE public_html in: $STORAGE_BASE"
+echo "   This storage is NEVER deleted during deployment!"

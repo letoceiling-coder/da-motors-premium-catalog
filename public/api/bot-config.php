@@ -15,7 +15,10 @@ $defaultConfig = [
 ];
 
 if ($_SERVER["REQUEST_METHOD"] === "GET") {
-    $config = read_json_file("bot-config.json", $defaultConfig);
+    // Try database first, fallback to JSON for migration
+    $dbConfig = db_get_bot_config();
+    $jsonConfig = read_json_file("bot-config.json", []);
+    $config = array_merge($defaultConfig, $dbConfig, $jsonConfig);
     $merged = array_merge($defaultConfig, $config);
     $hasToken = trim((string)($merged["botToken"] ?? "")) !== "";
     // Do not expose raw bot token in GET response.
@@ -32,7 +35,10 @@ if (!is_array($input)) {
     json_response(["ok" => false, "error" => "Invalid payload"], 400);
 }
 
-$stored = array_merge($defaultConfig, read_json_file("bot-config.json", $defaultConfig));
+// Get existing config from database or JSON
+$dbConfig = db_get_bot_config();
+$jsonConfig = read_json_file("bot-config.json", []);
+$stored = array_merge($defaultConfig, $dbConfig, $jsonConfig);
 $config = array_merge($stored, $input);
 
 $incomingToken = trim((string)($input["botToken"] ?? ""));
@@ -45,9 +51,13 @@ if ($token !== "") {
     $config["webhookUrl"] = (isset($_SERVER["HTTPS"]) ? "https://" : "http://") . $_SERVER["HTTP_HOST"] . "/telegram/webhook";
 }
 
-if (!write_json_file("bot-config.json", $config)) {
-    json_response(["ok" => false, "error" => "Failed to save config"], 500);
+// Save to database (primary storage)
+if (!db_save_bot_config($config)) {
+    json_response(["ok" => false, "error" => "Failed to save config to database"], 500);
 }
+
+// Also save to JSON for backward compatibility during migration
+write_json_file("bot-config.json", $config);
 
 $setWebhookResult = null;
 $setDescriptionResult = null;

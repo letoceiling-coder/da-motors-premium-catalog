@@ -66,7 +66,21 @@ export function AdminUsersPage() {
         setBotUsersError(payload?.error || "Не удалось загрузить пользователей бота");
         return;
       }
-      setBotUsers(payload.users || []);
+      const users = payload.users || [];
+      setBotUsers(users);
+      
+      // Load admins separately (from database)
+      try {
+        const adminResponse = await fetch("/api/bot-admins.php");
+        if (adminResponse.ok) {
+          const adminData = await adminResponse.json();
+          if (adminData?.ok) {
+            setBotAdmins(adminData.admins || []);
+          }
+        }
+      } catch {
+        // Ignore admin loading errors
+      }
     } catch {
       setBotUsersError("Ошибка сети при загрузке пользователей бота");
     } finally {
@@ -76,7 +90,7 @@ export function AdminUsersPage() {
 
   const setBotAdmin = async (chatId: string, isAdmin: boolean) => {
     try {
-      const response = await fetch("/api/bot-users.php", {
+      const response = await fetch("/api/bot-admins.php", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ chat_id: chatId, is_admin: isAdmin }),
@@ -86,7 +100,12 @@ export function AdminUsersPage() {
         setBotUsersError(payload?.error || "Не удалось обновить роль пользователя");
         return;
       }
-      setBotUsers(payload.users || []);
+      // Update local state
+      if (isAdmin) {
+        setBotAdmins((prev) => [...prev.filter((id) => id !== chatId), chatId]);
+      } else {
+        setBotAdmins((prev) => prev.filter((id) => id !== chatId));
+      }
     } catch {
       setBotUsersError("Ошибка сети при изменении роли");
     }
@@ -216,7 +235,7 @@ export function AdminUsersPage() {
                       <label className="inline-flex items-center gap-2">
                         <input
                           type="checkbox"
-                          checked={Boolean(user.is_admin)}
+                          checked={botAdmins.includes(user.chat_id)}
                           onChange={(e) => void setBotAdmin(user.chat_id, e.target.checked)}
                         />
                         Админ

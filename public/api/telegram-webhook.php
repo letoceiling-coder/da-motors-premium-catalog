@@ -13,7 +13,11 @@ function log_webhook(string $message, array $data = []): void
     @file_put_contents($logFile, $logEntry, FILE_APPEND);
 }
 
-$config = read_json_file("bot-config.json", []);
+// Get config from database (primary) with JSON fallback
+$dbConfig = db_get_bot_config();
+$jsonConfig = read_json_file("bot-config.json", []);
+$config = array_merge($dbConfig, $jsonConfig);
+
 $token = trim((string)($config["botToken"] ?? ""));
 if ($token === "") {
     log_webhook("ERROR: Bot token is not configured");
@@ -44,46 +48,23 @@ if ($chatId === "") {
     json_response(["ok" => true, "status" => "ignored"]);
 }
 
-// register/update bot user
+// register/update bot user in database
 // CRITICAL: Never delete users automatically - preserve all history
-$users = read_json_file("bot-users.json", []);
+$userData = [
+    "chat_id" => $chatId,
+    "user_id" => (string)($from["id"] ?? ""),
+    "username" => (string)($from["username"] ?? ""),
+    "first_name" => (string)($from["first_name"] ?? ""),
+    "last_name" => (string)($from["last_name"] ?? ""),
+    "is_admin" => false, // Will be checked from bot_admins table
+];
 
-// Ensure users is always an array (prevent data loss)
-if (!is_array($users)) {
-    $users = [];
-}
+// Save/update user in database
+db_save_bot_user($userData);
 
-$matchedIndex = -1;
-foreach ($users as $i => $user) {
-    if ((string)($user["chat_id"] ?? "") === $chatId) {
-        $matchedIndex = $i;
-        break;
-    }
-}
-
-if ($matchedIndex === -1) {
-    $users[] = [
-        "chat_id" => $chatId,
-        "user_id" => (string)($from["id"] ?? ""),
-        "username" => (string)($from["username"] ?? ""),
-        "first_name" => (string)($from["first_name"] ?? ""),
-        "last_name" => (string)($from["last_name"] ?? ""),
-        "is_admin" => false,
-        "created_at" => date(DATE_ATOM),
-        "updated_at" => date(DATE_ATOM),
-        "last_seen_at" => date(DATE_ATOM),
-    ];
-    $matchedIndex = count($users) - 1;
-} else {
-    $users[$matchedIndex]["username"] = (string)($from["username"] ?? "");
-    $users[$matchedIndex]["first_name"] = (string)($from["first_name"] ?? "");
-    $users[$matchedIndex]["last_name"] = (string)($from["last_name"] ?? "");
-    $users[$matchedIndex]["updated_at"] = date(DATE_ATOM);
-    $users[$matchedIndex]["last_seen_at"] = date(DATE_ATOM);
-}
-write_json_file("bot-users.json", $users);
-
-$isAdmin = (bool)($users[$matchedIndex]["is_admin"] ?? false);
+// Check if user is admin (from bot_admins table)
+$admins = db_get_bot_admins();
+$isAdmin = in_array($chatId, $admins, true);
 
 if ($text === "/start") {
     log_webhook("Processing /start command", ["chat_id" => $chatId]);

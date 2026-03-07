@@ -5,22 +5,28 @@ declare(strict_types=1);
 require_once __DIR__ . "/_common.php";
 
 // CRITICAL: Never delete users automatically - preserve all history
-$users = read_json_file("bot-users.json", []);
-
-// Ensure users is always an array (prevent data loss)
-if (!is_array($users)) {
-    $users = [];
+// Use database (primary) with JSON fallback for migration
+$users = db_get_bot_users();
+if (empty($users)) {
+    // Fallback to JSON during migration
+    $jsonUsers = read_json_file("bot-users.json", []);
+    if (is_array($jsonUsers) && !empty($jsonUsers)) {
+        $users = $jsonUsers;
+    }
 }
 
 if ($_SERVER["REQUEST_METHOD"] === "GET") {
-    // Filter out deleted users only if explicitly requested, but keep them in storage
-    $activeUsers = array_filter($users, static function ($user) {
-        return !isset($user["deleted_at"]);
-    });
-    usort($activeUsers, static function ($a, $b) {
+    // Users from DB are already filtered (deleted_at IS NULL)
+    // For JSON fallback, filter manually
+    if (!empty($users) && isset($users[0]['deleted_at'])) {
+        $users = array_filter($users, static function ($user) {
+            return !isset($user["deleted_at"]);
+        });
+    }
+    usort($users, static function ($a, $b) {
         return strcmp((string)($b["last_seen_at"] ?? ""), (string)($a["last_seen_at"] ?? ""));
     });
-    json_response(["ok" => true, "users" => array_values($activeUsers)]);
+    json_response(["ok" => true, "users" => array_values($users)]);
 }
 
 if ($_SERVER["REQUEST_METHOD"] !== "POST") {
@@ -39,34 +45,24 @@ if ($chatId === "") {
 
 $isAdmin = (bool)($input["is_admin"] ?? false);
 
-$updated = false;
-foreach ($users as &$user) {
-    if ((string)($user["chat_id"] ?? "") === $chatId) {
-        $user["is_admin"] = $isAdmin;
-        $user["updated_at"] = date(DATE_ATOM);
-        $updated = true;
-        break;
-    }
-}
-unset($user);
+// Save to database (primary storage)
+$userData = [
+    "chat_id" => $chatId,
+    "user_id" => (string)($input["user_id"] ?? ""),
+    "username" => (string)($input["username"] ?? ""),
+    "first_name" => (string)($input["first_name"] ?? ""),
+    "last_name" => (string)($input["last_name"] ?? ""),
+    "is_admin" => $isAdmin,
+];
 
-if (!$updated) {
-    $users[] = [
-        "chat_id" => $chatId,
-        "user_id" => (string)($input["user_id"] ?? ""),
-        "username" => (string)($input["username"] ?? ""),
-        "first_name" => (string)($input["first_name"] ?? ""),
-        "last_name" => (string)($input["last_name"] ?? ""),
-        "is_admin" => $isAdmin,
-        "created_at" => date(DATE_ATOM),
-        "updated_at" => date(DATE_ATOM),
-        "last_seen_at" => date(DATE_ATOM),
-    ];
+if (!db_save_bot_user($userData)) {
+    json_response(["ok" => false, "error" => "Failed to save user to database"], 500);
 }
 
-if (!write_json_file("bot-users.json", $users)) {
-    json_response(["ok" => false, "error" => "Failed to save users"], 500);
-}
+// Update admin status
+db_set_bot_admin($chatId, $isAdmin);
 
-json_response(["ok" => true, "users" => $users]);
+// Get updated users list
+$updatedUsers = db_get_bot_users();
+json_response(["ok" => true, "users" => $updatedUsers]);
 

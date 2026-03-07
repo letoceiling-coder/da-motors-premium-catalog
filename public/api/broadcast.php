@@ -4,7 +4,11 @@ declare(strict_types=1);
 
 require_once __DIR__ . "/_common.php";
 
-$config = read_json_file("bot-config.json", []);
+// Get config from database (primary) with JSON fallback
+$dbConfig = db_get_bot_config();
+$jsonConfig = read_json_file("bot-config.json", []);
+$config = array_merge($dbConfig, $jsonConfig);
+
 $token = trim((string)($config["botToken"] ?? ""));
 if ($token === "") {
     json_response(["ok" => false, "error" => "Bot token is not configured"], 400);
@@ -30,21 +34,31 @@ $disableWebPagePreview = (bool)($input["disableWebPagePreview"] ?? false);
 $sendToAll = (bool)($input["sendToAll"] ?? false);
 $selectedUsers = is_array($input["selectedUsers"] ?? null) ? $input["selectedUsers"] : [];
 
-// Get recipients
-$users = read_json_file("bot-users.json", []);
+// Get recipients from database (primary) with JSON fallback
+$users = db_get_bot_users();
+if (empty($users)) {
+    // Fallback to JSON during migration
+    $jsonUsers = read_json_file("bot-users.json", []);
+    if (is_array($jsonUsers)) {
+        $users = array_filter($jsonUsers, static function ($user) {
+            return !isset($user["deleted_at"]);
+        });
+    }
+}
+
 $recipients = [];
 
 if ($sendToAll) {
     foreach ($users as $user) {
         $chatId = (string)($user["chat_id"] ?? "");
-        if ($chatId !== "" && !isset($user["deleted_at"])) {
+        if ($chatId !== "") {
             $recipients[] = $chatId;
         }
     }
 } else {
     foreach ($selectedUsers as $selectedId) {
         foreach ($users as $user) {
-            if ((string)($user["chat_id"] ?? "") === (string)$selectedId && !isset($user["deleted_at"])) {
+            if ((string)($user["chat_id"] ?? "") === (string)$selectedId) {
                 $recipients[] = (string)($user["chat_id"] ?? "");
                 break;
             }
