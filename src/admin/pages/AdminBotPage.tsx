@@ -3,7 +3,6 @@ import { CheckCircle2, Info } from "lucide-react";
 
 interface BotFormState {
   botToken: string;
-  webhookUrl: string;
   webhookSecretToken: string;
   botDescription: string;
   botShortDescription: string;
@@ -19,6 +18,7 @@ interface BotFormState {
 }
 
 const TOKEN_REGEX = /^\d{8,10}:[A-Za-z0-9_-]{35}$/;
+const WEBHOOK_ROUTE = "/telegram/webhook";
 
 function isHttpUrl(value: string) {
   try {
@@ -37,7 +37,6 @@ function isMiniAppUrl(value: string) {
 export function AdminBotPage() {
   const [form, setForm] = useState<BotFormState>({
     botToken: "",
-    webhookUrl: "",
     webhookSecretToken: "",
     botDescription: "",
     botShortDescription: "",
@@ -53,16 +52,13 @@ export function AdminBotPage() {
   });
   const [submitInfo, setSubmitInfo] = useState("");
   const [autoWebhookApplied, setAutoWebhookApplied] = useState(false);
+  const [autoWebhookUrl, setAutoWebhookUrl] = useState("");
 
   const errors = useMemo(() => {
     const next: Partial<Record<keyof BotFormState, string>> = {};
 
     if (!TOKEN_REGEX.test(form.botToken.trim())) {
       next.botToken = "Токен должен соответствовать формату Telegram Bot Token";
-    }
-
-    if (!isHttpUrl(form.webhookUrl.trim())) {
-      next.webhookUrl = "Webhook должен быть валидным URL (http/https)";
     }
 
     if (form.webhookSecretToken.trim().length > 256) {
@@ -98,14 +94,11 @@ export function AdminBotPage() {
 
   useEffect(() => {
     if (!TOKEN_REGEX.test(form.botToken.trim())) return;
-    if (form.webhookUrl.trim().length > 0) return;
-
-    const tokenPrefix = form.botToken.split(":")[0];
-    const autoUrl = `${window.location.origin}/telegram/webhook/${tokenPrefix}`;
-    setForm((prev) => ({ ...prev, webhookUrl: autoUrl }));
+    const autoUrl = `${window.location.origin}${WEBHOOK_ROUTE}`;
+    setAutoWebhookUrl(autoUrl);
     setAutoWebhookApplied(true);
-    setSubmitInfo("Webhook подставлен автоматически после ввода валидного токена.");
-  }, [form.botToken, form.webhookUrl]);
+    setSubmitInfo("Webhook установлен автоматически после ввода валидного токена.");
+  }, [form.botToken]);
 
   const setField = <T extends keyof BotFormState>(key: T, value: BotFormState[T]) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -119,7 +112,7 @@ export function AdminBotPage() {
   };
 
   const onTestWebhook = () => {
-    if (errors.botToken || errors.webhookUrl) return;
+    if (errors.botToken) return;
     setSubmitInfo("Тест webhook (шаблон): соединение успешно.");
   };
 
@@ -153,17 +146,14 @@ export function AdminBotPage() {
             </div>
 
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">Webhook URL</label>
-              <input
-                value={form.webhookUrl}
-                onChange={(e) => setField("webhookUrl", e.target.value)}
-                placeholder="https://domain.com/webhook"
-                className="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none ring-blue-500 focus:ring-2"
-              />
-              {errors.webhookUrl ? <p className="mt-1 text-xs text-red-600">{errors.webhookUrl}</p> : null}
-              {autoWebhookApplied && !errors.webhookUrl ? (
-                <p className="mt-1 text-xs text-green-700">Webhook установлен автоматически по токену.</p>
-              ) : null}
+              <label className="mb-1 block text-sm font-medium text-gray-700">Webhook route (предопределен)</label>
+              <div className="rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-800">
+                {autoWebhookUrl || `${window.location.origin}${WEBHOOK_ROUTE}`}
+              </div>
+              <p className="mt-1 text-xs text-gray-500">
+                Поле URL скрыто для редактирования: webhook ставится автоматически на фиксированный роут.
+              </p>
+              {autoWebhookApplied ? <p className="mt-1 text-xs text-green-700">Webhook установлен автоматически по токену.</p> : null}
             </div>
 
             <div>

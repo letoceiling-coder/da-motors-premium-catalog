@@ -106,3 +106,16 @@
     display: none;
   }
 }
+
+/* Admin form controls: always readable text on light surfaces */
+.admin-ui input,
+.admin-ui textarea,
+.admin-ui select {
+  color: #111827;
+  background-color: #ffffff;
+}
+
+.admin-ui input::placeholder,
+.admin-ui textarea::placeholder {
+  color: #9ca3af;
+}

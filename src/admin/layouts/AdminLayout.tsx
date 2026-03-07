@@ -28,7 +28,7 @@ export function AdminLayout() {
       .toUpperCase() || "A";
 
   return (
-    <div className="flex min-h-screen bg-gray-50 text-gray-900">
+    <div className="admin-ui flex min-h-screen bg-gray-50 text-gray-900">
       <aside className="hidden w-72 shrink-0 border-r border-gray-200 bg-gray-900 text-gray-100 lg:flex lg:flex-col">
         <div className="flex h-16 items-center gap-3 border-b border-gray-800 px-6">
           <div className="rounded-lg bg-blue-600/90 p-2">

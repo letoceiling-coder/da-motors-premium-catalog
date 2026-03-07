@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 type MessageType = "text" | "photo" | "video";
 
@@ -21,6 +21,8 @@ export function AdminBroadcastPage() {
   const [type, setType] = useState<MessageType>("text");
   const [text, setText] = useState("");
   const [mediaUrl, setMediaUrl] = useState("");
+  const [mediaFile, setMediaFile] = useState<File | null>(null);
+  const [mediaPreviewUrl, setMediaPreviewUrl] = useState("");
   const [parseMode, setParseMode] = useState<"HTML" | "MarkdownV2" | "None">("HTML");
   const [disableNotification, setDisableNotification] = useState(false);
   const [protectContent, setProtectContent] = useState(false);
@@ -38,10 +40,23 @@ export function AdminBroadcastPage() {
         next.text = "Текст сообщения должен быть от 1 до 4096 символов (Telegram Bot API)";
       }
     } else {
-      if (!mediaUrl.trim()) {
-        next.media = "Для фото/видео укажите URL файла";
-      } else if (!isUrl(mediaUrl.trim())) {
+      if (!mediaUrl.trim() && !mediaFile) {
+        next.media = "Добавьте файл или URL для фото/видео";
+      } else if (mediaUrl.trim() && !isUrl(mediaUrl.trim())) {
         next.media = "Некорректный URL медиа";
+      }
+
+      if (mediaFile) {
+        const isPhoto = type === "photo";
+        const expectedMime = isPhoto ? "image/" : "video/";
+        if (!mediaFile.type.startsWith(expectedMime)) {
+          next.media = isPhoto ? "Для фото нужен image-файл" : "Для видео нужен video-файл";
+        }
+
+        const maxBytes = isPhoto ? 10 * 1024 * 1024 : 50 * 1024 * 1024;
+        if (mediaFile.size > maxBytes) {
+          next.media = isPhoto ? "Размер фото превышает 10MB" : "Размер видео превышает 50MB";
+        }
       }
       if (text.length > 1024) {
         next.caption = "Подпись к медиа: максимум 1024 символа";
@@ -53,7 +68,7 @@ export function AdminBroadcastPage() {
     }
 
     return next;
-  }, [mediaUrl, selectedUsers.length, sendToAll, text, type]);
+  }, [mediaFile, mediaUrl, selectedUsers.length, sendToAll, text, type]);
 
   const hasErrors = Object.keys(errors).length > 0;
 
@@ -69,6 +84,22 @@ export function AdminBroadcastPage() {
     setSelectedUsers((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
     setSubmitInfo("");
   };
+
+  useEffect(() => {
+    if (!mediaFile) {
+      setMediaPreviewUrl("");
+      return;
+    }
+    const objectUrl = URL.createObjectURL(mediaFile);
+    setMediaPreviewUrl(objectUrl);
+    return () => URL.revokeObjectURL(objectUrl);
+  }, [mediaFile]);
+
+  useEffect(() => {
+    setMediaFile(null);
+    setMediaPreviewUrl("");
+    setMediaUrl("");
+  }, [type]);
 
   return (
     <div className="space-y-6">
@@ -155,8 +186,37 @@ export function AdminBroadcastPage() {
             </div>
 
             {(type === "photo" || type === "video") && (
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">URL медиа</label>
+              <div className="space-y-3">
+                <label className="mb-1 block text-sm font-medium text-gray-700">Медиа (файл или URL)</label>
+                <input
+                  type="file"
+                  accept={type === "photo" ? "image/*" : "video/*"}
+                  onChange={(e) => {
+                    const selected = e.target.files?.[0] || null;
+                    setMediaFile(selected);
+                    setSubmitInfo("");
+                  }}
+                  className="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 file:mr-3 file:rounded-md file:border-0 file:bg-blue-50 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-blue-700 hover:file:bg-blue-100"
+                />
+                {mediaFile ? (
+                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm text-gray-700">
+                    <p>
+                      Файл: <span className="font-medium">{mediaFile.name}</span>
+                    </p>
+                    <p>Размер: {(mediaFile.size / (1024 * 1024)).toFixed(2)} MB</p>
+                    {type === "photo" && mediaPreviewUrl ? (
+                      <img src={mediaPreviewUrl} alt="preview" className="mt-2 max-h-40 rounded-md border border-gray-200 object-contain" />
+                    ) : null}
+                    <button
+                      type="button"
+                      onClick={() => setMediaFile(null)}
+                      className="mt-2 rounded-md border border-gray-300 px-2 py-1 text-xs text-gray-700 hover:bg-gray-100"
+                    >
+                      Удалить файл
+                    </button>
+                  </div>
+                ) : null}
+                <p className="text-xs text-gray-500">Или вставьте URL медиа:</p>
                 <input
                   value={mediaUrl}
                   onChange={(e) => {
