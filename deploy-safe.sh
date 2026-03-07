@@ -102,6 +102,13 @@ mv dist/.[^.]* . 2>/dev/null || true
 if [ -f "dist/.htaccess" ]; then
     cp dist/.htaccess .htaccess 2>/dev/null || true
 fi
+# Copy API directory from public/api to api/ (Vite copies public/ to dist/)
+if [ -d "dist/api" ]; then
+    echo "✓ Copying API files..."
+    mkdir -p api
+    cp -r dist/api/* api/ 2>/dev/null || true
+    chmod -R 644 api/*.php 2>/dev/null || true
+fi
 rmdir dist 2>/dev/null || true
 
 # STEP 9: Clean up build artifacts (NEVER touch protected storage)
