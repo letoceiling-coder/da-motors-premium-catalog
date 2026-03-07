@@ -54,11 +54,15 @@ export function AdminBotPage() {
   const [autoWebhookApplied, setAutoWebhookApplied] = useState(false);
   const [autoWebhookUrl, setAutoWebhookUrl] = useState("");
   const [loadingConfig, setLoadingConfig] = useState(true);
+  const [hasStoredToken, setHasStoredToken] = useState(false);
 
   const errors = useMemo(() => {
     const next: Partial<Record<keyof BotFormState, string>> = {};
 
-    if (!TOKEN_REGEX.test(form.botToken.trim())) {
+    const tokenValue = form.botToken.trim();
+    if (!hasStoredToken && tokenValue.length === 0) {
+      next.botToken = "Укажите токен бота (первичная настройка)";
+    } else if (tokenValue.length > 0 && !TOKEN_REGEX.test(tokenValue)) {
       next.botToken = "Токен должен соответствовать формату Telegram Bot Token";
     }
 
@@ -94,12 +98,12 @@ export function AdminBotPage() {
   const hasErrors = Object.keys(errors).length > 0;
 
   useEffect(() => {
-    if (!TOKEN_REGEX.test(form.botToken.trim())) return;
+    if (!TOKEN_REGEX.test(form.botToken.trim()) && !hasStoredToken) return;
     const autoUrl = `${window.location.origin}${WEBHOOK_ROUTE}`;
     setAutoWebhookUrl(autoUrl);
     setAutoWebhookApplied(true);
     setSubmitInfo("Webhook установлен автоматически после ввода валидного токена.");
-  }, [form.botToken]);
+  }, [form.botToken, hasStoredToken]);
 
   const setField = <T extends keyof BotFormState>(key: T, value: BotFormState[T]) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -121,6 +125,7 @@ export function AdminBotPage() {
           setSubmitInfo(`Ошибка сохранения: ${payload?.error || "unknown"}`);
           return;
         }
+        setHasStoredToken(Boolean(payload?.hasToken));
         if (payload?.config?.webhookUrl) {
           setAutoWebhookUrl(payload.config.webhookUrl);
           setAutoWebhookApplied(true);
@@ -148,6 +153,7 @@ export function AdminBotPage() {
         const response = await fetch("/api/bot-config.php", { cache: "no-store" });
         const payload = await response.json();
         if (response.ok && payload?.ok && payload?.config) {
+          setHasStoredToken(Boolean(payload?.hasToken));
           setForm((prev) => ({
             ...prev,
             botToken: payload.config.botToken || "",
@@ -192,10 +198,13 @@ export function AdminBotPage() {
               <input
                 value={form.botToken}
                 onChange={(e) => setField("botToken", e.target.value)}
-                placeholder="1234567890:AA...."
+                placeholder={hasStoredToken ? "Токен сохранен (оставьте пустым, чтобы не менять)" : "1234567890:AA...."}
                 className="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none ring-blue-500 focus:ring-2"
               />
               {errors.botToken ? <p className="mt-1 text-xs text-red-600">{errors.botToken}</p> : null}
+              {!errors.botToken && hasStoredToken ? (
+                <p className="mt-1 text-xs text-green-700">Токен уже сохранен. Можно редактировать другие поля без повторного ввода.</p>
+              ) : null}
             </div>
 
             <div>

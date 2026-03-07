@@ -16,7 +16,11 @@ $defaultConfig = [
 
 if ($_SERVER["REQUEST_METHOD"] === "GET") {
     $config = read_json_file("bot-config.json", $defaultConfig);
-    json_response(["ok" => true, "config" => array_merge($defaultConfig, $config)]);
+    $merged = array_merge($defaultConfig, $config);
+    $hasToken = trim((string)($merged["botToken"] ?? "")) !== "";
+    // Do not expose raw bot token in GET response.
+    $merged["botToken"] = "";
+    json_response(["ok" => true, "config" => $merged, "hasToken" => $hasToken]);
 }
 
 if ($_SERVER["REQUEST_METHOD"] !== "POST") {
@@ -28,7 +32,13 @@ if (!is_array($input)) {
     json_response(["ok" => false, "error" => "Invalid payload"], 400);
 }
 
-$config = array_merge($defaultConfig, $input);
+$stored = array_merge($defaultConfig, read_json_file("bot-config.json", $defaultConfig));
+$config = array_merge($stored, $input);
+
+$incomingToken = trim((string)($input["botToken"] ?? ""));
+if ($incomingToken !== "") {
+    $config["botToken"] = $incomingToken;
+}
 
 $token = trim((string)($config["botToken"] ?? ""));
 if ($token !== "") {
@@ -59,7 +69,8 @@ if ($token !== "") {
 
 json_response([
     "ok" => true,
-    "config" => $config,
+    "config" => array_merge($config, ["botToken" => ""]),
+    "hasToken" => ($token !== ""),
     "webhook" => $setWebhookResult,
     "description" => $setDescriptionResult,
     "short_description" => $setShortDescriptionResult,
