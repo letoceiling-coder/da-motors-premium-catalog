@@ -43,18 +43,27 @@ fi
 
 # STEP 3: Update repository
 echo "✓ Updating repository..."
-if [ -d ".git" ]; then
+if [ -d ".git" ] && git rev-parse --git-dir > /dev/null 2>&1; then
+    echo "✓ Using existing git repository"
     git fetch origin
     git reset --hard origin/main
     git clean -fd
 else
+    echo "✓ Cloning fresh repository..."
     # Remove .git if exists but broken
     rm -rf .git 2>/dev/null || true
     # Remove everything except public before cloning
     find . -maxdepth 1 -mindepth 1 ! -name "public" ! -name "." -exec rm -rf {} \; 2>/dev/null || true
-    git clone https://github.com/letoceiling-coder/da-motors-premium-catalog.git . || {
-        echo "⚠ Git clone failed, trying to continue with existing files..."
+    # Clone to temp directory first
+    TEMP_DIR=$(mktemp -d)
+    git clone https://github.com/letoceiling-coder/da-motors-premium-catalog.git "$TEMP_DIR" || {
+        echo "❌ Git clone failed!"
+        exit 1
     }
+    # Move files from temp to current directory
+    mv "$TEMP_DIR"/* . 2>/dev/null || true
+    mv "$TEMP_DIR"/.[^.]* . 2>/dev/null || true
+    rm -rf "$TEMP_DIR"
 fi
 
 # STEP 4: Restore data from backup (CRITICAL)
