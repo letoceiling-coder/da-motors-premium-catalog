@@ -4,7 +4,11 @@
 
 set -e  # Exit on error
 
-cd batnorton.siteaccess.ru/public_html || exit 1
+# Change to the correct directory
+cd ~/batnorton.siteaccess.ru/public_html || {
+    echo "Error: Cannot find public_html directory"
+    exit 1
+}
 
 echo "=== SAFE DEPLOYMENT START ==="
 
@@ -37,13 +41,15 @@ if [ -d "public" ]; then
     find public -mindepth 1 -maxdepth 1 ! -name "data" -exec rm -rf {} \; 2>/dev/null || true
 fi
 
-# STEP 3: Clone repository
-echo "✓ Cloning repository..."
+# STEP 3: Update repository
+echo "✓ Updating repository..."
 if [ -d ".git" ]; then
     git fetch origin
     git reset --hard origin/main
     git clean -fd
 else
+    # Remove everything except public/data before cloning
+    find . -maxdepth 1 -mindepth 1 ! -name "public" ! -name "." -exec rm -rf {} \; 2>/dev/null || true
     git clone https://github.com/letoceiling-coder/da-motors-premium-catalog.git .
 fi
 
