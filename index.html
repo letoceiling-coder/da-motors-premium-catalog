@@ -16,6 +16,32 @@
   <meta property="og:image" content="https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/2493731b-171a-43fc-b73b-1ca70d4b19f5/id-preview-82537699--06476a5f-f23b-413d-ac1f-90e76df2a1d4.lovable.app-1772401634134.png">
   <meta name="twitter:image" content="https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/2493731b-171a-43fc-b73b-1ca70d4b19f5/id-preview-82537699--06476a5f-f23b-413d-ac1f-90e76df2a1d4.lovable.app-1772401634134.png">
   <meta name="twitter:card" content="summary_large_image">
+  <script>
+    // Применяем темную тему по умолчанию до загрузки React
+    (function() {
+      try {
+        const stored = localStorage.getItem('da-motors-user');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          const theme = parsed?.state?.theme || 'dark';
+          if (theme === 'dark') {
+            document.documentElement.classList.add('dark');
+          } else if (theme === 'light') {
+            document.documentElement.classList.remove('dark');
+          } else {
+            const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            document.documentElement.classList.toggle('dark', isDark);
+          }
+        } else {
+          // По умолчанию темная тема
+          document.documentElement.classList.add('dark');
+        }
+      } catch (e) {
+        // В случае ошибки применяем темную тему по умолчанию
+        document.documentElement.classList.add('dark');
+      }
+    })();
+  </script>
 </head>
 
   <body>

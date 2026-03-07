@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { lazy, Suspense } from "react";
 import { MainShell } from "@/MainShell";
+import { ThemeProvider } from "@/components/ThemeProvider";
 
 const CatalogPage = lazy(() => import("./pages/CatalogPage"));
 const SearchPage = lazy(() => import("./pages/SearchPage"));
@@ -19,26 +20,28 @@ const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Suspense fallback={<div className="min-h-screen bg-background" />}>
-          <Routes>
-            <Route path="/premium/*" element={<PremiumApp />} />
-            <Route path="/*" element={<MainShell />}>
-              <Route index element={<CatalogPage />} />
-              <Route path="search" element={<SearchPage />} />
-              <Route path="car/:id" element={<CarDetailPage />} />
-              <Route path="favorites" element={<FavoritesPage />} />
-              <Route path="trade-in" element={<TradeInPage />} />
-              <Route path="profile" element={<ProfilePage />} />
-              <Route path="*" element={<NotFound />} />
-            </Route>
-          </Routes>
-        </Suspense>
-      </BrowserRouter>
-    </TooltipProvider>
+    <ThemeProvider>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <Suspense fallback={<div className="min-h-screen bg-background" />}>
+            <Routes>
+              <Route path="/premium/*" element={<PremiumApp />} />
+              <Route path="/*" element={<MainShell />}>
+                <Route index element={<CatalogPage />} />
+                <Route path="search" element={<SearchPage />} />
+                <Route path="car/:id" element={<CarDetailPage />} />
+                <Route path="favorites" element={<FavoritesPage />} />
+                <Route path="trade-in" element={<TradeInPage />} />
+                <Route path="profile" element={<ProfilePage />} />
+                <Route path="*" element={<NotFound />} />
+              </Route>
+            </Routes>
+          </Suspense>
+        </BrowserRouter>
+      </TooltipProvider>
+    </ThemeProvider>
   </QueryClientProvider>
 );
 

@@ -37,7 +37,7 @@ export interface ContactRequest {
 export const useUserStore = create<UserState>()(
   persist(
     (set, get) => ({
-      theme: 'auto',
+      theme: 'dark',
       setTheme: (theme) => set({ theme }),
       recentSearches: [],
       addRecentSearch: (q) => {
