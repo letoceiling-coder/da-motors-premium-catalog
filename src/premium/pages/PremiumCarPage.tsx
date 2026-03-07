@@ -11,7 +11,6 @@ import {
 } from "lucide-react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
-  cars,
   drivetrainLabels,
   formatMileage,
   formatPrice,
@@ -20,10 +19,12 @@ import {
 } from "@/data/cars";
 import { PremiumCarCard } from "../components/PremiumCarCard";
 import { Reveal } from "../components/Reveal";
+import { useCarsStore } from "@/stores/carsStore";
 
 const PremiumCarPage = () => {
   const navigate = useNavigate();
   const { id } = useParams();
+  const cars = useCarsStore((s) => s.cars);
   const car = cars.find((entry) => entry.id === id);
 
   const [activePhoto, setActivePhoto] = useState(0);

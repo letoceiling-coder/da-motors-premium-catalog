@@ -12,6 +12,7 @@ const CatalogPage = () => {
   const [loading, setLoading] = useState(true);
   const cars = useCarsStore((s) => s.cars);
   const filters = useCarsStore((s) => s.filters);
+  const loadCars = useCarsStore((s) => s.loadCars);
 
   const filteredCars = useMemo(() => {
     return cars.filter((car) => {
@@ -36,9 +37,15 @@ const CatalogPage = () => {
   }, [cars, filters]);
 
   useEffect(() => {
-    const t = setTimeout(() => setLoading(false), 600);
-    return () => clearTimeout(t);
-  }, []);
+    let active = true;
+    (async () => {
+      await loadCars();
+      if (active) setLoading(false);
+    })();
+    return () => {
+      active = false;
+    };
+  }, [loadCars]);
   return (
     <div className="min-h-screen bg-background pb-20">
       <Header onOpenFilter={() => setFilterOpen(true)} />

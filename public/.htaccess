@@ -1,0 +1,12 @@
+RewriteEngine On
+RewriteBase /
+
+# Pretty webhook route for Telegram
+RewriteRule ^telegram/webhook$ /api/telegram-webhook.php [L,QSA]
+
+# SPA fallback
+RewriteRule ^index\.html$ - [L]
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule . /index.html [L]
+

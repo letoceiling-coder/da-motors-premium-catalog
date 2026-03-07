@@ -1,4 +1,4 @@
-import { cars } from "@/data/cars";
+import { useCarsStore } from "@/stores/carsStore";
 import { HeroSection } from "../sections/HeroSection";
 import { FeaturedCarsSection } from "../sections/FeaturedCarsSection";
 import { PremiumFilterPanel } from "../sections/PremiumFilterPanel";
@@ -6,6 +6,7 @@ import { BenefitsSection } from "../sections/BenefitsSection";
 import { CtaSection } from "../sections/CtaSection";
 
 const PremiumHome = () => {
+  const cars = useCarsStore((s) => s.cars);
   const heroCar = cars[0];
   const featuredCars = cars.slice(0, 8);
 

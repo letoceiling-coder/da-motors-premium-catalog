@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { lazy, Suspense } from "react";
 import { MainShell } from "@/MainShell";
 import { ThemeProvider } from "@/components/ThemeProvider";
+import { CarsBootstrap } from "@/components/CarsBootstrap";
 
 const CatalogPage = lazy(() => import("./pages/CatalogPage"));
 const SearchPage = lazy(() => import("./pages/SearchPage"));
@@ -23,6 +24,7 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider>
       <TooltipProvider>
+        <CarsBootstrap />
         <Toaster />
         <Sonner />
         <BrowserRouter>

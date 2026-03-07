@@ -36,6 +36,8 @@ const defaultFilters: Filters = {
 interface CarsState {
   cars: Car[];
   filters: Filters;
+  loadCars: () => Promise<void>;
+  setCars: (cars: Car[]) => void;
   setFilter: <K extends keyof Filters>(key: K, value: Filters[K]) => void;
   resetFilters: () => void;
   setBrand: (brand: string | null) => void;
@@ -48,6 +50,20 @@ interface CarsState {
 export const useCarsStore = create<CarsState>((set, get) => ({
   cars,
   filters: { ...defaultFilters },
+  setCars: (cars) => set({ cars }),
+  loadCars: async () => {
+    try {
+      const response = await fetch(`/data/cars.json?t=${Date.now()}`, { cache: "no-store" });
+      if (!response.ok) return;
+      const payload = await response.json();
+      const nextCars = Array.isArray(payload) ? payload : Array.isArray(payload?.cars) ? payload.cars : null;
+      if (nextCars && nextCars.length > 0) {
+        set({ cars: nextCars as Car[] });
+      }
+    } catch {
+      // keep bundled fallback cars
+    }
+  },
   setFilter: (key, value) => set((s) => ({ filters: { ...s.filters, [key]: value } })),
   resetFilters: () => set({ filters: { ...defaultFilters } }),
   setBrand: (brand) => set((s) => ({ filters: { ...s.filters, brand } })),

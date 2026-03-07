@@ -1,9 +1,10 @@
 import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { Search } from "lucide-react";
-import { BodyType, cars } from "@/data/cars";
+import { BodyType } from "@/data/cars";
 import { PremiumCarCard } from "../components/PremiumCarCard";
 import { Reveal } from "../components/Reveal";
+import { useCarsStore } from "@/stores/carsStore";
 
 const bodyTypeLabels: Record<BodyType, string> = {
   sedan: "Sedan",
@@ -30,13 +31,14 @@ const gridItem = {
 };
 
 const PremiumCatalog = () => {
+  const cars = useCarsStore((s) => s.cars);
   const [query, setQuery] = useState("");
   const [brand, setBrand] = useState("all");
   const [bodyType, setBodyType] = useState<BodyType | "all">("all");
 
   const brands = useMemo(
     () => ["all", ...Array.from(new Set(cars.map((car) => car.brand))).sort()],
-    []
+    [cars]
   );
 
   const filteredCars = useMemo(() => {

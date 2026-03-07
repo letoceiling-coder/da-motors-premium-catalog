@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 type MessageType = "text" | "photo" | "video";
+type MediaSource = "file" | "url";
 
 const MOCK_RECIPIENTS = [
   { id: "u-1", name: "John Wick", username: "@johnwick" },
@@ -23,6 +24,7 @@ export function AdminBroadcastPage() {
   const [mediaUrl, setMediaUrl] = useState("");
   const [mediaFile, setMediaFile] = useState<File | null>(null);
   const [mediaPreviewUrl, setMediaPreviewUrl] = useState("");
+  const [mediaSource, setMediaSource] = useState<MediaSource>("file");
   const [parseMode, setParseMode] = useState<"HTML" | "MarkdownV2" | "None">("HTML");
   const [disableNotification, setDisableNotification] = useState(false);
   const [protectContent, setProtectContent] = useState(false);
@@ -40,13 +42,19 @@ export function AdminBroadcastPage() {
         next.text = "Текст сообщения должен быть от 1 до 4096 символов (Telegram Bot API)";
       }
     } else {
-      if (!mediaUrl.trim() && !mediaFile) {
-        next.media = "Добавьте файл или URL для фото/видео";
-      } else if (mediaUrl.trim() && !isUrl(mediaUrl.trim())) {
-        next.media = "Некорректный URL медиа";
+      if (mediaSource === "file") {
+        if (!mediaFile) {
+          next.media = "Добавьте файл для фото/видео";
+        }
+      } else {
+        if (!mediaUrl.trim()) {
+          next.media = "Укажите URL для фото/видео";
+        } else if (!isUrl(mediaUrl.trim())) {
+          next.media = "Некорректный URL медиа";
+        }
       }
 
-      if (mediaFile) {
+      if (mediaSource === "file" && mediaFile) {
         const isPhoto = type === "photo";
         const expectedMime = isPhoto ? "image/" : "video/";
         if (!mediaFile.type.startsWith(expectedMime)) {
@@ -68,7 +76,7 @@ export function AdminBroadcastPage() {
     }
 
     return next;
-  }, [mediaFile, mediaUrl, selectedUsers.length, sendToAll, text, type]);
+  }, [mediaFile, mediaSource, mediaUrl, selectedUsers.length, sendToAll, text, type]);
 
   const hasErrors = Object.keys(errors).length > 0;
 
@@ -76,7 +84,7 @@ export function AdminBroadcastPage() {
     e.preventDefault();
     if (hasErrors) return;
     setSubmitInfo(
-      `Шаблон: рассылка валидна и готова к отправке через Telegram Bot API (parse_mode=${parseMode}, disable_notification=${disableNotification}, protect_content=${protectContent}, disable_web_page_preview=${disableWebPagePreview}).`
+      `Шаблон: рассылка валидна и готова к отправке через Telegram Bot API (source=${mediaSource}, parse_mode=${parseMode}, disable_notification=${disableNotification}, protect_content=${protectContent}, disable_web_page_preview=${disableWebPagePreview}).`
     );
   };
 
@@ -99,6 +107,7 @@ export function AdminBroadcastPage() {
     setMediaFile(null);
     setMediaPreviewUrl("");
     setMediaUrl("");
+    setMediaSource("file");
   }, [type]);
 
   return (
@@ -187,45 +196,79 @@ export function AdminBroadcastPage() {
 
             {(type === "photo" || type === "video") && (
               <div className="space-y-3">
-                <label className="mb-1 block text-sm font-medium text-gray-700">Медиа (файл или URL)</label>
-                <input
-                  type="file"
-                  accept={type === "photo" ? "image/*" : "video/*"}
-                  onChange={(e) => {
-                    const selected = e.target.files?.[0] || null;
-                    setMediaFile(selected);
-                    setSubmitInfo("");
-                  }}
-                  className="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 file:mr-3 file:rounded-md file:border-0 file:bg-blue-50 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-blue-700 hover:file:bg-blue-100"
-                />
-                {mediaFile ? (
-                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm text-gray-700">
-                    <p>
-                      Файл: <span className="font-medium">{mediaFile.name}</span>
-                    </p>
-                    <p>Размер: {(mediaFile.size / (1024 * 1024)).toFixed(2)} MB</p>
-                    {type === "photo" && mediaPreviewUrl ? (
-                      <img src={mediaPreviewUrl} alt="preview" className="mt-2 max-h-40 rounded-md border border-gray-200 object-contain" />
+                <label className="mb-1 block text-sm font-medium text-gray-700">Источник медиа</label>
+                <div className="flex flex-wrap items-center gap-4 rounded-lg border border-gray-200 bg-white p-3">
+                  <label className="flex items-center gap-2 text-sm text-gray-700">
+                    <input
+                      type="radio"
+                      checked={mediaSource === "file"}
+                      onChange={() => {
+                        setMediaSource("file");
+                        setSubmitInfo("");
+                      }}
+                    />
+                    Файл
+                  </label>
+                  <label className="flex items-center gap-2 text-sm text-gray-700">
+                    <input
+                      type="radio"
+                      checked={mediaSource === "url"}
+                      onChange={() => {
+                        setMediaSource("url");
+                        setSubmitInfo("");
+                      }}
+                    />
+                    URL
+                  </label>
+                </div>
+
+                {mediaSource === "file" ? (
+                  <>
+                    <input
+                      type="file"
+                      accept={type === "photo" ? "image/*" : "video/*"}
+                      onChange={(e) => {
+                        const selected = e.target.files?.[0] || null;
+                        setMediaFile(selected);
+                        setSubmitInfo("");
+                      }}
+                      className="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 file:mr-3 file:rounded-md file:border-0 file:bg-blue-50 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-blue-700 hover:file:bg-blue-100"
+                    />
+                    {mediaFile ? (
+                      <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm text-gray-700">
+                        <p>
+                          Файл: <span className="font-medium">{mediaFile.name}</span>
+                        </p>
+                        <p>Размер: {(mediaFile.size / (1024 * 1024)).toFixed(2)} MB</p>
+                        {type === "photo" && mediaPreviewUrl ? (
+                          <img
+                            src={mediaPreviewUrl}
+                            alt="preview"
+                            className="mt-2 max-h-40 rounded-md border border-gray-200 object-contain"
+                          />
+                        ) : null}
+                        <button
+                          type="button"
+                          onClick={() => setMediaFile(null)}
+                          className="mt-2 rounded-md border border-gray-300 px-2 py-1 text-xs text-gray-700 hover:bg-gray-100"
+                        >
+                          Удалить файл
+                        </button>
+                      </div>
                     ) : null}
-                    <button
-                      type="button"
-                      onClick={() => setMediaFile(null)}
-                      className="mt-2 rounded-md border border-gray-300 px-2 py-1 text-xs text-gray-700 hover:bg-gray-100"
-                    >
-                      Удалить файл
-                    </button>
-                  </div>
-                ) : null}
-                <p className="text-xs text-gray-500">Или вставьте URL медиа:</p>
-                <input
-                  value={mediaUrl}
-                  onChange={(e) => {
-                    setMediaUrl(e.target.value);
-                    setSubmitInfo("");
-                  }}
-                  placeholder="https://example.com/file.jpg"
-                  className="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none ring-blue-500 focus:ring-2"
-                />
+                  </>
+                ) : (
+                  <input
+                    value={mediaUrl}
+                    onChange={(e) => {
+                      setMediaUrl(e.target.value);
+                      setSubmitInfo("");
+                    }}
+                    placeholder="https://example.com/file.jpg"
+                    className="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none ring-blue-500 focus:ring-2"
+                  />
+                )}
+
                 {errors.media ? <p className="mt-1 text-xs text-red-600">{errors.media}</p> : null}
               </div>
             )}

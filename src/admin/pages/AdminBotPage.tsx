@@ -53,6 +53,7 @@ export function AdminBotPage() {
   const [submitInfo, setSubmitInfo] = useState("");
   const [autoWebhookApplied, setAutoWebhookApplied] = useState(false);
   const [autoWebhookUrl, setAutoWebhookUrl] = useState("");
+  const [loadingConfig, setLoadingConfig] = useState(true);
 
   const errors = useMemo(() => {
     const next: Partial<Record<keyof BotFormState, string>> = {};
@@ -108,7 +109,27 @@ export function AdminBotPage() {
   const onSave = (e: React.FormEvent) => {
     e.preventDefault();
     if (hasErrors) return;
-    setSubmitInfo("Шаблон сохранён локально. Здесь можно подключить API без изменения UI.");
+    void (async () => {
+      try {
+        const response = await fetch("/api/bot-config.php", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(form),
+        });
+        const payload = await response.json();
+        if (!response.ok || !payload?.ok) {
+          setSubmitInfo(`Ошибка сохранения: ${payload?.error || "unknown"}`);
+          return;
+        }
+        if (payload?.config?.webhookUrl) {
+          setAutoWebhookUrl(payload.config.webhookUrl);
+          setAutoWebhookApplied(true);
+        }
+        setSubmitInfo("Настройки бота сохранены. Webhook обновлен.");
+      } catch {
+        setSubmitInfo("Ошибка сети при сохранении настроек бота.");
+      }
+    })();
   };
 
   const onTestWebhook = () => {
@@ -121,6 +142,35 @@ export function AdminBotPage() {
     setSubmitInfo("Тест кнопки MiniApp (шаблон): кнопка валидна.");
   };
 
+  useEffect(() => {
+    void (async () => {
+      try {
+        const response = await fetch("/api/bot-config.php", { cache: "no-store" });
+        const payload = await response.json();
+        if (response.ok && payload?.ok && payload?.config) {
+          setForm((prev) => ({
+            ...prev,
+            botToken: payload.config.botToken || "",
+            webhookSecretToken: payload.config.webhookSecretToken || "",
+            botDescription: payload.config.botDescription || "",
+            botShortDescription: payload.config.botShortDescription || "",
+            welcomeMessage: payload.config.welcomeMessage || prev.welcomeMessage,
+            startButtonText: payload.config.startButtonText || prev.startButtonText,
+            miniAppUrl: payload.config.miniAppUrl || prev.miniAppUrl,
+          }));
+          if (payload.config.webhookUrl) {
+            setAutoWebhookUrl(payload.config.webhookUrl);
+            setAutoWebhookApplied(true);
+          }
+        }
+      } catch {
+        // ignore, keep defaults
+      } finally {
+        setLoadingConfig(false);
+      }
+    })();
+  }, []);
+
   return (
     <div className="space-y-6">
       <div className="rounded-xl border border-gray-200 bg-white p-6">
@@ -130,6 +180,9 @@ export function AdminBotPage() {
         </p>
       </div>
 
+      {loadingConfig ? (
+        <div className="rounded-xl border border-gray-200 bg-white p-6 text-sm text-gray-600">Загрузка настроек...</div>
+      ) : null}
       <form onSubmit={onSave} className="space-y-6">
         <section className="rounded-xl border border-gray-200 bg-white p-6">
           <h3 className="text-base font-semibold text-gray-900">Подключение бота</h3>
