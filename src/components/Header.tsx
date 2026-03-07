@@ -27,12 +27,14 @@ export function Header({ onOpenFilter }: HeaderProps) {
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-md border-b">
       <div className="flex items-center justify-between h-14 px-4 max-w-lg mx-auto">
-        <h1
-          className="text-2xl font-black tracking-tight text-primary cursor-pointer"
+        <button
+          type="button"
+          className="inline-flex items-center"
           onClick={() => navigate('/')}
+          aria-label="На главную"
         >
-          DA
-        </h1>
+          <img src="/logo.png" alt="DA Motors" className="h-9 w-auto object-contain" />
+        </button>
 
         <div className="flex items-center gap-2">
           <button
