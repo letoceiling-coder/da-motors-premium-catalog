@@ -1,0 +1,16 @@
+# Protect data directory from deletion
+# This file prevents accidental deletion of data
+
+# Deny direct access to JSON files (optional security)
+<FilesMatch "\.json$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# Allow only from localhost/API
+<FilesMatch "\.json$">
+    Order deny,allow
+    Deny from all
+    Allow from 127.0.0.1
+    Allow from ::1
+</FilesMatch>
