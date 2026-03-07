@@ -48,9 +48,13 @@ if [ -d ".git" ]; then
     git reset --hard origin/main
     git clean -fd
 else
-    # Remove everything except public/data before cloning
+    # Remove .git if exists but broken
+    rm -rf .git 2>/dev/null || true
+    # Remove everything except public before cloning
     find . -maxdepth 1 -mindepth 1 ! -name "public" ! -name "." -exec rm -rf {} \; 2>/dev/null || true
-    git clone https://github.com/letoceiling-coder/da-motors-premium-catalog.git .
+    git clone https://github.com/letoceiling-coder/da-motors-premium-catalog.git . || {
+        echo "⚠ Git clone failed, trying to continue with existing files..."
+    }
 fi
 
 # STEP 4: Restore data from backup (CRITICAL)
