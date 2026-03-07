@@ -98,6 +98,10 @@ npm run build
 echo "✓ Moving build files..."
 mv dist/* . 2>/dev/null || true
 mv dist/.[^.]* . 2>/dev/null || true
+# Explicitly copy .htaccess if it exists in dist
+if [ -f "dist/.htaccess" ]; then
+    cp dist/.htaccess .htaccess 2>/dev/null || true
+fi
 rmdir dist 2>/dev/null || true
 
 # STEP 9: Clean up build artifacts (NEVER touch protected storage)
