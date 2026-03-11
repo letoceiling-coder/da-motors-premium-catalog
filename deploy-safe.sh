@@ -121,10 +121,16 @@ RewriteRule . /index.html [L]
 EOF
 fi
 # Copy API directory from public/api to api/ (Vite copies public/ to dist/)
+# Try from dist first (Vite output), then fallback to public/api (source)
 if [ -d "dist/api" ]; then
-    echo "✓ Copying API files..."
+    echo "✓ Copying API files from dist/api..."
     mkdir -p api
     cp -r dist/api/* api/ 2>/dev/null || true
+    chmod -R 644 api/*.php 2>/dev/null || true
+elif [ -d "public/api" ]; then
+    echo "✓ Copying API files from public/api..."
+    mkdir -p api
+    cp -r public/api/* api/ 2>/dev/null || true
     chmod -R 644 api/*.php 2>/dev/null || true
 fi
 # Copy logo and favicon from dist (Vite copies public/ to dist/)
