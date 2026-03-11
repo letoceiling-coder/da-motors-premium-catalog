@@ -5,8 +5,14 @@ RewriteBase /
 RewriteRule ^telegram/webhook$ /api/telegram-webhook.php [L,QSA]
 
 # Don't rewrite API requests - let them go to PHP files directly
-RewriteCond %{REQUEST_URI} ^/api/ [OR]
-RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_URI} ^/api/
+RewriteRule . - [L]
+
+# Don't rewrite if file exists
+RewriteCond %{REQUEST_FILENAME} -f
+RewriteRule . - [L]
+
+# Don't rewrite if directory exists
 RewriteCond %{REQUEST_FILENAME} -d
 RewriteRule . - [L]
 
