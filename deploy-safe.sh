@@ -98,9 +98,27 @@ npm run build
 echo "✓ Moving build files..."
 mv dist/* . 2>/dev/null || true
 mv dist/.[^.]* . 2>/dev/null || true
-# Explicitly copy .htaccess if it exists in dist
+# Explicitly copy .htaccess (from dist or public)
 if [ -f "dist/.htaccess" ]; then
     cp dist/.htaccess .htaccess 2>/dev/null || true
+elif [ -f "public/.htaccess" ]; then
+    cp public/.htaccess .htaccess 2>/dev/null || true
+    echo "✓ Copied .htaccess from public/"
+fi
+# Ensure .htaccess exists (critical for SPA routing)
+if [ ! -f ".htaccess" ]; then
+    echo "⚠ WARNING: .htaccess not found! Creating default..."
+    cat > .htaccess << 'EOF'
+RewriteEngine On
+RewriteBase /
+RewriteRule ^telegram/webhook$ /api/telegram-webhook.php [L,QSA]
+RewriteCond %{REQUEST_URI} ^/api/ [OR]
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule . - [L]
+RewriteRule ^index\.html$ - [L]
+RewriteRule . /index.html [L]
+EOF
 fi
 # Copy API directory from public/api to api/ (Vite copies public/ to dist/)
 if [ -d "dist/api" ]; then
