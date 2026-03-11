@@ -19,6 +19,7 @@ export function AdminUsersPage() {
   const [formError, setFormError] = useState("");
   const [submitInfo, setSubmitInfo] = useState("");
   const [botUsers, setBotUsers] = useState<BotUser[]>([]);
+  const [botAdmins, setBotAdmins] = useState<string[]>([]);
   const [botUsersError, setBotUsersError] = useState("");
   const [loadingBotUsers, setLoadingBotUsers] = useState(false);
 
