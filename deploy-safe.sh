@@ -127,6 +127,15 @@ if [ -d "dist/api" ]; then
     cp -r dist/api/* api/ 2>/dev/null || true
     chmod -R 644 api/*.php 2>/dev/null || true
 fi
+# Copy logo and favicon from dist (Vite copies public/ to dist/)
+if [ -f "dist/logo.png" ]; then
+    cp dist/logo.png logo.png 2>/dev/null || true
+    chmod 644 logo.png 2>/dev/null || true
+fi
+if [ -f "dist/favicon.png" ]; then
+    cp dist/favicon.png favicon.png 2>/dev/null || true
+    chmod 644 favicon.png 2>/dev/null || true
+fi
 rmdir dist 2>/dev/null || true
 
 # STEP 9: Clean up build artifacts (NEVER touch protected storage)
