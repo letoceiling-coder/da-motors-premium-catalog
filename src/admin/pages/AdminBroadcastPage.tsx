@@ -93,31 +93,44 @@ export function AdminBroadcastPage() {
     setSubmitInfo("Отправка рассылки...");
     
     try {
-      // Prepare media URL - for file uploads, we need to handle differently
-      let finalMediaUrl = mediaUrl;
-      if (mediaSource === "file" && mediaFile) {
-        // For now, file uploads need to be handled via URL
-        // In production, you'd upload to a server first and get URL
-        setSubmitInfo("Ошибка: загрузка файлов через URL пока не поддерживается. Используйте URL медиа.");
-        return;
-      }
+      let response: Response;
       
-      const response = await fetch("/api/broadcast.php", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          type,
-          text,
-          mediaSource,
-          mediaUrl: finalMediaUrl,
-          parseMode,
-          disableNotification,
-          protectContent,
-          disableWebPagePreview,
-          sendToAll,
-          selectedUsers: sendToAll ? [] : selectedUsers,
-        }),
-      });
+      // Use FormData for file uploads, JSON for URL/text
+      if (mediaSource === "file" && mediaFile) {
+        const formData = new FormData();
+        formData.append("type", type);
+        formData.append("text", text);
+        formData.append("mediaSource", mediaSource);
+        formData.append("mediaFile", mediaFile);
+        formData.append("parseMode", parseMode);
+        formData.append("disableNotification", disableNotification.toString());
+        formData.append("protectContent", protectContent.toString());
+        formData.append("disableWebPagePreview", disableWebPagePreview.toString());
+        formData.append("sendToAll", sendToAll.toString());
+        formData.append("selectedUsers", JSON.stringify(sendToAll ? [] : selectedUsers));
+        
+        response = await fetch("/api/broadcast.php", {
+          method: "POST",
+          body: formData,
+        });
+      } else {
+        response = await fetch("/api/broadcast.php", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            type,
+            text,
+            mediaSource,
+            mediaUrl: mediaUrl,
+            parseMode,
+            disableNotification,
+            protectContent,
+            disableWebPagePreview,
+            sendToAll,
+            selectedUsers: sendToAll ? [] : selectedUsers,
+          }),
+        });
+      }
       
       const data = await response.json();
       
@@ -129,6 +142,7 @@ export function AdminBroadcastPage() {
         setText("");
         setMediaUrl("");
         setMediaFile(null);
+        setMediaPreviewUrl("");
         setSelectedUsers([]);
       } else {
         setSubmitInfo(`Ошибка отправки: ${data.error || "Неизвестная ошибка"}`);

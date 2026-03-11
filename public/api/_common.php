@@ -351,3 +351,83 @@ function telegram_api_request(string $token, string $method, array $payload): ar
     return is_array($decoded) ? $decoded : ["ok" => false, "error" => "Invalid Telegram response"];
 }
 
+function telegram_api_request_file(string $token, string $method, array $payload, string $fileField, string $filePath): array
+{
+    if (!file_exists($filePath)) {
+        return ["ok" => false, "error" => "File not found"];
+    }
+    
+    $url = "https://api.telegram.org/bot{$token}/{$method}";
+    
+    // Use curl if available (more reliable for file uploads)
+    if (function_exists('curl_init')) {
+        $ch = curl_init($url);
+        $fileInfo = new finfo(FILEINFO_MIME_TYPE);
+        $mimeType = $fileInfo->file($filePath);
+        $fileName = basename($filePath);
+        
+        // Create CURLFile
+        $cfile = new CURLFile($filePath, $mimeType, $fileName);
+        $payload[$fileField] = $cfile;
+        
+        curl_setopt_array($ch, [
+            CURLOPT_POST => true,
+            CURLOPT_POSTFIELDS => $payload,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT => 60,
+            CURLOPT_SSL_VERIFYPEER => true,
+        ]);
+        
+        $result = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $curlError = curl_error($ch);
+        curl_close($ch);
+        
+        if ($result === false || $httpCode !== 200) {
+            return ["ok" => false, "error" => $curlError ?: "Request failed (HTTP {$httpCode})"];
+        }
+        
+        $decoded = json_decode($result, true);
+        return is_array($decoded) ? $decoded : ["ok" => false, "error" => "Invalid Telegram response"];
+    }
+    
+    // Fallback to file_get_contents with multipart (less reliable)
+    $boundary = uniqid();
+    $fileInfo = new finfo(FILEINFO_MIME_TYPE);
+    $mimeType = $fileInfo->file($filePath);
+    $fileName = basename($filePath);
+    
+    $body = "";
+    foreach ($payload as $key => $value) {
+        if (is_array($value)) {
+            $value = json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        }
+        $body .= "--{$boundary}\r\n";
+        $body .= "Content-Disposition: form-data; name=\"{$key}\"\r\n\r\n";
+        $body .= $value . "\r\n";
+    }
+    
+    $fileContent = file_get_contents($filePath);
+    $body .= "--{$boundary}\r\n";
+    $body .= "Content-Disposition: form-data; name=\"{$fileField}\"; filename=\"{$fileName}\"\r\n";
+    $body .= "Content-Type: {$mimeType}\r\n\r\n";
+    $body .= $fileContent . "\r\n";
+    $body .= "--{$boundary}--\r\n";
+    
+    $opts = [
+        "http" => [
+            "method" => "POST",
+            "header" => "Content-Type: multipart/form-data; boundary={$boundary}\r\n",
+            "content" => $body,
+            "timeout" => 60,
+        ],
+    ];
+    
+    $result = @file_get_contents($url, false, stream_context_create($opts));
+    if ($result === false) {
+        return ["ok" => false, "error" => "Request failed"];
+    }
+    $decoded = json_decode($result, true);
+    return is_array($decoded) ? $decoded : ["ok" => false, "error" => "Invalid Telegram response"];
+}
+

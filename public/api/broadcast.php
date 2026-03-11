@@ -18,9 +18,30 @@ if ($_SERVER["REQUEST_METHOD"] !== "POST") {
     json_response(["ok" => false, "error" => "Method not allowed"], 405);
 }
 
-$input = json_decode(file_get_contents("php://input"), true);
-if (!is_array($input)) {
-    json_response(["ok" => false, "error" => "Invalid payload"], 400);
+// Handle both JSON and multipart/form-data
+$input = [];
+$uploadedFile = null;
+$uploadedFilePath = null;
+
+$contentType = $_SERVER["CONTENT_TYPE"] ?? "";
+if (strpos($contentType, "multipart/form-data") !== false) {
+    // Handle multipart/form-data (file upload)
+    $input = $_POST;
+    if (isset($_FILES["mediaFile"]) && $_FILES["mediaFile"]["error"] === UPLOAD_ERR_OK) {
+        $uploadedFile = $_FILES["mediaFile"];
+        // Create temporary file path
+        $tempDir = sys_get_temp_dir();
+        $uploadedFilePath = $tempDir . DIRECTORY_SEPARATOR . uniqid("broadcast_") . "_" . basename($uploadedFile["name"]);
+        if (!move_uploaded_file($uploadedFile["tmp_name"], $uploadedFilePath)) {
+            json_response(["ok" => false, "error" => "Failed to save uploaded file"], 500);
+        }
+    }
+} else {
+    // Handle JSON
+    $input = json_decode(file_get_contents("php://input"), true);
+    if (!is_array($input)) {
+        json_response(["ok" => false, "error" => "Invalid payload"], 400);
+    }
 }
 
 $type = (string)($input["type"] ?? "text");
@@ -91,8 +112,13 @@ if ($type === "text") {
             json_response(["ok" => false, "error" => "Media URL is required"], 400);
         }
         $basePayload[$type] = $mediaUrl;
+    } elseif ($mediaSource === "file") {
+        if ($uploadedFilePath === null || !file_exists($uploadedFilePath)) {
+            json_response(["ok" => false, "error" => "Media file is required"], 400);
+        }
+        // File will be sent via telegram_api_request_file
     } else {
-        json_response(["ok" => false, "error" => "File upload not supported yet, use URL"], 400);
+        json_response(["ok" => false, "error" => "Invalid media source"], 400);
     }
     if ($text !== "") {
         if (strlen($text) > 1024) {
@@ -114,10 +140,18 @@ $method = $type === "text" ? "sendMessage" : ($type === "photo" ? "sendPhoto" : 
 $successCount = 0;
 $failCount = 0;
 $errors = [];
+$useFileUpload = ($type === "photo" || $type === "video") && $mediaSource === "file" && $uploadedFilePath !== null;
 
 foreach ($recipients as $chatId) {
     $payload = array_merge($basePayload, ["chat_id" => $chatId]);
-    $result = telegram_api_request($token, $method, $payload);
+    
+    if ($useFileUpload) {
+        // Remove media URL from payload (we'll send file instead)
+        unset($payload[$type]);
+        $result = telegram_api_request_file($token, $method, $payload, $type, $uploadedFilePath);
+    } else {
+        $result = telegram_api_request($token, $method, $payload);
+    }
     
     if (($result["ok"] ?? false) === true) {
         $successCount++;
@@ -131,6 +165,11 @@ foreach ($recipients as $chatId) {
     
     // Small delay to avoid rate limiting
     usleep(100000); // 0.1 second
+}
+
+// Clean up uploaded file
+if ($uploadedFilePath !== null && file_exists($uploadedFilePath)) {
+    @unlink($uploadedFilePath);
 }
 
 json_response([
